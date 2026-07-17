@@ -1,0 +1,702 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一致ゲーム</title>
+<!-- Firebase (Realtime Database) — GitHub Pages 等、claude.ai の外で動かすための同期用バックエンド -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#191830;
+    --bg-deep:#121026;
+    --panel:#232244;
+    --panel-2:#2b2a52;
+    --border:#3a3868;
+    --text:#F1EEFA;
+    --text-dim:#A9A6C9;
+    --gold:#FFC94D;
+    --gold-deep:#E8A93A;
+    --danger:#FF6B6B;
+    --radius:18px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 15% 0%, #2a2856 0%, transparent 45%),
+      radial-gradient(circle at 100% 20%, #2a2856 0%, transparent 40%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Zen Kaku Gothic New', sans-serif;
+    min-height:100vh;
+    padding:24px 14px 60px;
+  }
+  h1,h2,h3,.display{font-family:'Zen Maru Gothic', sans-serif;}
+  #app{max-width:640px;margin:0 auto;}
+  button{font-family:inherit; cursor:pointer;}
+  input, select, button{font-size:16px;}
+  input:focus-visible, select:focus-visible, button:focus-visible{
+    outline:2px solid var(--gold); outline-offset:2px;
+  }
+  .brand{
+    text-align:center; margin-bottom:22px;
+  }
+  .brand .mark{
+    display:inline-block; font-size:13px; letter-spacing:.18em; color:var(--gold);
+    background:rgba(255,201,77,.1); border:1px solid rgba(255,201,77,.35);
+    padding:4px 12px; border-radius:999px; margin-bottom:10px;
+  }
+  .brand h1{font-size:34px; font-weight:900; margin:0; letter-spacing:.02em;}
+  .brand p{color:var(--text-dim); margin:6px 0 0; font-size:14px;}
+
+  .panel{
+    background:linear-gradient(180deg, var(--panel), var(--panel-2));
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:22px;
+    margin-bottom:16px;
+    box-shadow:0 10px 30px rgba(0,0,0,.25);
+  }
+  .panel h2{margin:0 0 14px; font-size:19px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:13px; color:var(--text-dim); margin-bottom:6px;}
+  .field input, .field select{
+    width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--border);
+    background:var(--bg-deep); color:var(--text);
+  }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    width:100%; padding:13px 16px; border-radius:12px; border:none;
+    font-weight:700; font-size:15px; transition:transform .12s ease, filter .12s ease;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn-gold{background:linear-gradient(180deg, var(--gold), var(--gold-deep)); color:#2a1e00;}
+  .btn-gold:hover{filter:brightness(1.06);}
+  .btn-outline{background:transparent; border:1px solid var(--border); color:var(--text);}
+  .btn-outline:hover{border-color:var(--gold); color:var(--gold);}
+  .btn-danger{background:transparent; border:1px solid rgba(255,107,107,.5); color:var(--danger);}
+  .btn-danger:hover{background:rgba(255,107,107,.1);}
+  .btn:disabled{opacity:.5; cursor:not-allowed;}
+  .row{display:flex; gap:10px;}
+  .row > *{flex:1;}
+  .tabs{display:flex; gap:8px; margin-bottom:18px;}
+  .tab{flex:1; padding:11px; text-align:center; border-radius:12px; border:1px solid var(--border); color:var(--text-dim); font-weight:700; font-size:14px;}
+  .tab.active{background:rgba(255,201,77,.14); border-color:var(--gold); color:var(--gold);}
+
+  .code-display{
+    text-align:center; padding:18px; border-radius:14px;
+    background:var(--bg-deep); border:1px dashed var(--gold-deep); margin-bottom:16px;
+  }
+  .code-display .label{font-size:12px; color:var(--text-dim); letter-spacing:.1em;}
+  .code-display .code{font-size:40px; font-weight:900; letter-spacing:.14em; color:var(--gold); font-family:'Zen Maru Gothic', sans-serif;}
+  .code-display button{margin-top:8px;}
+
+  .player-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(120px,1fr)); gap:10px; margin:14px 0;}
+  .chip{
+    display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:12px;
+    background:var(--bg-deep); border:1px solid var(--border); font-size:14px; font-weight:500;
+  }
+  .dot{width:10px; height:10px; border-radius:50%; flex:none;}
+  .host-badge{font-size:10px; color:var(--gold); border:1px solid var(--gold-deep); border-radius:6px; padding:1px 5px; margin-left:auto;}
+
+  .eyebrow{font-size:12px; color:var(--gold); letter-spacing:.12em; font-weight:700; margin-bottom:6px;}
+  .question{font-size:24px; font-weight:900; font-family:'Zen Maru Gothic', sans-serif; margin:0 0 18px; line-height:1.4;}
+  .round-tag{color:var(--text-dim); font-size:13px; margin-bottom:2px;}
+
+  .answer-input{
+    width:100%; padding:16px; font-size:18px; border-radius:14px; border:2px solid var(--border);
+    background:var(--bg-deep); color:var(--text); margin-bottom:12px; text-align:center; font-weight:700;
+  }
+  .answer-input:focus-visible{border-color:var(--gold);}
+  .submitted-box{
+    text-align:center; padding:20px; border-radius:14px; background:rgba(255,201,77,.08); border:1px solid rgba(255,201,77,.3); margin-bottom:14px;
+  }
+  .submitted-box .big{font-size:22px; font-weight:900; color:var(--gold); font-family:'Zen Maru Gothic', sans-serif;}
+
+  .status-list{display:flex; flex-wrap:wrap; gap:8px; margin:14px 0;}
+  .status-pill{
+    display:flex; align-items:center; gap:6px; padding:7px 11px; border-radius:999px; font-size:13px;
+    border:1px solid var(--border); background:var(--bg-deep);
+  }
+  .status-pill.done{border-color:#5ED9A0; color:#8EF0BE;}
+
+  .tile{
+    position:relative; border-radius:14px; padding:16px; border:2px solid var(--border);
+    background:var(--bg-deep); margin-bottom:10px; transition:transform .2s ease;
+  }
+  .tile.match{box-shadow:0 0 0 2px var(--tile-color) inset, 0 0 22px -4px var(--tile-color); border-color:var(--tile-color); animation:pop .35s ease;}
+  @keyframes pop{0%{transform:scale(.92); opacity:0;} 100%{transform:scale(1); opacity:1;}}
+  .tile .answer-text{font-size:20px; font-weight:900; font-family:'Zen Maru Gothic', sans-serif;}
+  .tile .who-row{display:flex; align-items:center; justify-content:space-between; margin-top:8px;}
+  .tile .who{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-dim);}
+  .badge-match{
+    font-size:11px; font-weight:900; padding:3px 9px; border-radius:999px; color:#241a00;
+    background:var(--tile-color);
+  }
+  .badge-pts{font-size:13px; font-weight:700; color:var(--gold);}
+
+  .scoreboard{margin:14px 0;}
+  .score-row{display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; background:var(--bg-deep); border:1px solid var(--border); margin-bottom:8px;}
+  .score-row .rank{width:22px; font-weight:900; color:var(--text-dim); text-align:center;}
+  .score-row .name{flex:1; font-weight:700;}
+  .score-row .pts{font-weight:900; color:var(--gold); font-size:17px;}
+  .score-row.top1{border-color:var(--gold); background:rgba(255,201,77,.08);}
+
+  .final-hero{text-align:center; padding:10px 0 22px;}
+  .final-hero .crown{font-size:44px;}
+  .final-hero .winner{font-size:26px; font-weight:900; font-family:'Zen Maru Gothic', sans-serif; color:var(--gold);}
+
+  .empty-note{color:var(--text-dim); font-size:13px; text-align:center; margin-top:10px;}
+  .error-toast{
+    background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.4); color:#FFB3B3;
+    padding:10px 14px; border-radius:12px; font-size:13px; margin-bottom:14px; text-align:center;
+  }
+  .footer-note{text-align:center; color:var(--text-dim); font-size:12px; margin-top:22px; line-height:1.7;}
+  .link-btn{background:none; border:none; color:var(--text-dim); text-decoration:underline; font-size:13px; padding:0;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ---------------- constants ---------------- */
+const QUESTIONS = [
+  "好きな動物は?","朝ごはんに食べたいものは?","今の気分を一言で","行ってみたい国は?","好きな色は?",
+  "休日にしたいことは?","好きな季節は?","食べたいラーメンの種類は?","苦手な食べ物は?","行きたい国内旅行先は?",
+  "好きなスポーツは?","飼いたいペットは?","好きな飲み物は?","得意料理は?","好きな映画のジャンルは?",
+  "コンビニでよく買うものは?","好きな漫画・アニメのジャンルは?","好きな数字(1〜9)は?","好きな曜日は?",
+  "テンションが上がる音楽ジャンルは?","好きなお菓子は?","行ってみたいテーマパークは?","好きな花は?",
+  "好きな天気は?","好きな時間帯は?","好きな乗り物は?","欲しい家電は?","好きな野菜は?","好きな果物は?",
+  "苦手な虫は?","好きな寿司ネタは?","好きなアイスの味は?","行きたい世界遺産は?","好きな絵文字は?",
+  "好きなカフェメニューは?","好きな麺料理は?","無人島に持っていきたいものは?","好きなパンの種類は?",
+  "理想の休日の過ごし方は?","好きな鍋の具材は?","子供の頃の夢は?","好きな星座は?","好きな匂いは?",
+  "旅行に必ず持っていくものは?","好きなお正月の食べ物は?","好きな夏の思い出は?"
+];
+const PLAYER_COLORS = ['#FF6B6B','#FFA94D','#FFD93D','#6BCB77','#4DCCBD','#4D96FF','#7C7CFF','#C77DFF','#FF7DC0','#FF9F7D'];
+const GROUP_COLORS = ['#FFC94D','#4DCCBD','#FF7DC0','#4D96FF','#7C7CFF','#6BCB77'];
+const MAX_PLAYERS = 10;
+
+/* ---------------- state ---------------- */
+let state = {
+  screen:'home', tab:'create',
+  myId:null, myName:'', roomCode:null, isHost:false,
+  meta:null, players:[], answersMap:{}, myAnswerSubmitted:false,
+  errorMsg:'', busy:false,
+};
+let pollTimer = null;
+let lastRenderKey = null;
+let draftAnswer = '';
+
+/* ---------------- storage helpers ---------------- */
+function genId(len=8){
+  const chars='abcdefghijklmnopqrstuvwxyz0123456789';
+  let s=''; for(let i=0;i<len;i++) s+=chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+function genRoomCode(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s=''; for(let i=0;i<4;i++) s+=chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+/*
+  ▼▼▼ ここに自分の Firebase プロジェクトの設定を貼り付けてください ▼▼▼
+  Firebaseコンソール > プロジェクトの設定 > マイアプリ(ウェブアプリ)で発行される
+  firebaseConfig オブジェクトをそのままコピー&ペーストします。
+*/
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// key例: "room:ABCD:player:xyz" -> Realtime Database のパス "room/ABCD/player/xyz"
+function keyToPath(key){ return key.replace(/:/g, '/'); }
+
+async function sGet(key){
+  try{
+    const snap = await db.ref(keyToPath(key)).get();
+    return snap.exists() ? snap.val() : null;
+  }catch(e){ console.error(e); return null; }
+}
+async function sSet(key, val){
+  try{ await db.ref(keyToPath(key)).set(val); return true; }
+  catch(e){ console.error(e); showError('通信エラーが発生しました。もう一度お試しください。'); return false; }
+}
+async function sDelete(key){
+  try{ await db.ref(keyToPath(key)).remove(); }catch(e){ console.error(e); }
+}
+async function sList(prefix){
+  // prefix は末尾が ":" (例: "room:ABCD:player:") — 一つ上の階層のパスとして子キー一覧を取得する
+  try{
+    const parentPath = keyToPath(prefix.slice(0, -1));
+    const snap = await db.ref(parentPath).get();
+    if(!snap.exists()) return [];
+    const keys = [];
+    snap.forEach(child => { keys.push(prefix + child.key); });
+    return keys;
+  }catch(e){ console.error(e); return []; }
+}
+function showError(msg){ state.errorMsg = msg; render(true); setTimeout(()=>{ state.errorMsg=''; render(true); }, 3500); }
+
+/* ---------------- room key helpers ---------------- */
+const kMeta = c => `room:${c}:meta`;
+const kPlayerPrefix = c => `room:${c}:player:`;
+const kPlayer = (c,id) => `room:${c}:player:${id}`;
+const kAnswerPrefix = (c,gid,round) => `room:${c}:answer:${gid}:${round}:`;
+const kAnswer = (c,gid,round,id) => `room:${c}:answer:${gid}:${round}:${id}`;
+
+/* ---------------- normalization / scoring ---------------- */
+function normalize(s){ return (s||'').trim().replace(/\s+/g,'').toLowerCase(); }
+
+function computeTiles(players, answersMap){
+  const groups = {}; // normalized -> [playerId]
+  players.forEach(p=>{
+    const a = answersMap[p.id];
+    if(!a || !a.answer || !a.answer.trim()) return;
+    const n = normalize(a.answer);
+    if(!groups[n]) groups[n]=[];
+    groups[n].push(p.id);
+  });
+  const groupList = Object.entries(groups).map(([norm, ids])=>({norm, ids}));
+  groupList.sort((a,b)=> b.ids.length - a.ids.length);
+  let colorIdx = 0;
+  const tiles = [];
+  const pointsMap = {};
+  groupList.forEach(g=>{
+    const isMatch = g.ids.length >= 2;
+    const isPerfect = isMatch && g.ids.length === players.length && players.length >= 2;
+    const pts = isMatch ? (g.ids.length + (isPerfect ? 5 : 0)) : 0;
+    const color = isMatch ? GROUP_COLORS[colorIdx % GROUP_COLORS.length] : null;
+    if(isMatch) colorIdx++;
+    g.ids.forEach(id=> pointsMap[id]=pts);
+    tiles.push({ answer: answersMap[g.ids[0]].answer, ids:g.ids, isMatch, isPerfect, pts, color });
+  });
+  // players with no answer
+  players.forEach(p=>{
+    if(!answersMap[p.id]) pointsMap[p.id]=0;
+  });
+  return { tiles, pointsMap };
+}
+
+/* ---------------- actions ---------------- */
+async function createRoom(){
+  const nameEl = document.getElementById('nameInputCreate');
+  const name = nameEl.value.trim();
+  if(!name){ showError('名前を入力してください'); return; }
+  state.busy = true; render(true);
+  let code;
+  for(let i=0;i<5;i++){
+    code = genRoomCode();
+    const existing = await sGet(kMeta(code));
+    if(!existing) break;
+  }
+  const myId = genId();
+  const ok1 = await sSet(kMeta(code), {
+    hostId: myId, phase:'lobby', round:0, totalRounds:8, question:'',
+    usedQuestions:[], gameId:null, lastRoundResult:null, createdAt: Date.now()
+  });
+  const ok2 = await sSet(kPlayer(code, myId), { id:myId, name, score:0, joinedAt: Date.now() });
+  state.busy = false;
+  if(!ok1 || !ok2){ showError('ルーム作成に失敗しました'); return; }
+  state.myId = myId; state.myName = name; state.roomCode = code; state.isHost = true;
+  await enterRoomPolling();
+}
+
+async function joinRoom(){
+  const codeEl = document.getElementById('codeInputJoin');
+  const nameEl = document.getElementById('nameInputJoin');
+  const code = codeEl.value.trim().toUpperCase();
+  const name = nameEl.value.trim();
+  if(!code || !name){ showError('ルームコードと名前を入力してください'); return; }
+  state.busy = true; render(true);
+  const meta = await sGet(kMeta(code));
+  if(!meta){ state.busy=false; showError('ルームが見つかりません'); return; }
+  if(meta.phase !== 'lobby'){ state.busy=false; showError('このルームはすでにゲーム中です'); return; }
+  const keys = await sList(kPlayerPrefix(code));
+  if(keys.length >= MAX_PLAYERS){ state.busy=false; showError('満員です(最大10人)'); return; }
+  const myId = genId();
+  const ok = await sSet(kPlayer(code, myId), { id:myId, name, score:0, joinedAt: Date.now() });
+  state.busy = false;
+  if(!ok){ showError('参加に失敗しました'); return; }
+  state.myId = myId; state.myName = name; state.roomCode = code; state.isHost = false;
+  await enterRoomPolling();
+}
+
+async function enterRoomPolling(){
+  state.screen = 'room';
+  await refreshRoomState();
+  render(true);
+  if(pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async ()=>{ await refreshRoomState(); render(false); }, 2200);
+}
+
+async function refreshRoomState(){
+  if(!state.roomCode) return;
+  const code = state.roomCode;
+  const meta = await sGet(kMeta(code));
+  if(!meta) return;
+  state.meta = meta;
+  state.isHost = meta.hostId === state.myId;
+  const pKeys = await sList(kPlayerPrefix(code));
+  const players = (await Promise.all(pKeys.map(k=>sGet(k)))).filter(Boolean);
+  players.sort((a,b)=> a.joinedAt - b.joinedAt);
+  state.players = players;
+
+  if((meta.phase==='answering' || meta.phase==='reveal') && meta.gameId){
+    const aKeys = await sList(kAnswerPrefix(code, meta.gameId, meta.round));
+    const answersArr = await Promise.all(aKeys.map(async k=>{
+      const v = await sGet(k);
+      const pid = k.split(':').pop();
+      return v ? [pid, v] : null;
+    }));
+    const map = {};
+    answersArr.filter(Boolean).forEach(([pid,v])=>{ map[pid]=v; });
+    state.answersMap = map;
+    state.myAnswerSubmitted = !!map[state.myId];
+  }
+}
+
+async function startGame(){
+  const sel = document.getElementById('roundsSelect');
+  const totalRounds = parseInt(sel.value, 10);
+  const q = QUESTIONS[Math.floor(Math.random()*QUESTIONS.length)];
+  const gameId = Date.now().toString(36) + genId(4);
+  const meta = { ...state.meta, phase:'answering', round:1, totalRounds, question:q,
+    usedQuestions:[q], gameId, lastRoundResult:null };
+  state.busy = true; render(false);
+  await sSet(kMeta(state.roomCode), meta);
+  state.busy = false;
+  await refreshRoomState(); render(true);
+}
+
+async function submitAnswer(){
+  const input = document.getElementById('answerBox');
+  const text = input.value.trim();
+  if(!text){ showError('回答を入力してください'); return; }
+  const { meta, roomCode, myId } = state;
+  state.busy = true; render(false);
+  await sSet(kAnswer(roomCode, meta.gameId, meta.round, myId), { answer:text, submittedAt: Date.now() });
+  state.busy = false; draftAnswer='';
+  await refreshRoomState(); render(true);
+}
+
+async function hostReveal(){
+  state.busy = true; render(false);
+  await refreshRoomState();
+  const { players, answersMap, meta, roomCode } = state;
+  const { tiles, pointsMap } = computeTiles(players, answersMap);
+  // apply scores
+  for(const p of players){
+    const pts = pointsMap[p.id] || 0;
+    if(pts>0){ await sSet(kPlayer(roomCode, p.id), { ...p, score: p.score + pts }); }
+  }
+  const newMeta = { ...meta, phase:'reveal',
+    lastRoundResult: { question: meta.question, tiles: tiles.map(t=>({
+      answer:t.answer, isMatch:t.isMatch, isPerfect:t.isPerfect, pts:t.pts, color:t.color,
+      names: t.ids.map(id => (players.find(p=>p.id===id)||{}).name || '?')
+    })) } };
+  await sSet(kMeta(roomCode), newMeta);
+  state.busy = false;
+  await refreshRoomState(); render(true);
+}
+
+async function nextQuestion(){
+  state.busy = true; render(false);
+  await refreshRoomState();
+  const meta = state.meta;
+  const nextRound = meta.round + 1;
+  if(nextRound > meta.totalRounds){
+    await sSet(kMeta(state.roomCode), { ...meta, phase:'finished' });
+  } else {
+    const remaining = QUESTIONS.filter(q => !meta.usedQuestions.includes(q));
+    const pool = remaining.length ? remaining : QUESTIONS;
+    const q = pool[Math.floor(Math.random()*pool.length)];
+    await sSet(kMeta(state.roomCode), { ...meta, phase:'answering', round: nextRound, question:q,
+      usedQuestions:[...meta.usedQuestions, q], lastRoundResult:null });
+  }
+  state.busy = false;
+  await refreshRoomState(); render(true);
+}
+
+async function playAgain(){
+  state.busy = true; render(false);
+  await refreshRoomState();
+  for(const p of state.players){
+    await sSet(kPlayer(state.roomCode, p.id), { ...p, score:0 });
+  }
+  await sSet(kMeta(state.roomCode), { ...state.meta, phase:'lobby', round:0, question:'',
+    usedQuestions:[], gameId:null, lastRoundResult:null });
+  state.busy = false;
+  await refreshRoomState(); render(true);
+}
+
+async function leaveRoom(){
+  if(pollTimer) clearInterval(pollTimer);
+  if(state.roomCode && state.myId){ await sDelete(kPlayer(state.roomCode, state.myId)); }
+  state = { screen:'home', tab:'create', myId:null, myName:'', roomCode:null, isHost:false,
+    meta:null, players:[], answersMap:{}, myAnswerSubmitted:false, errorMsg:'', busy:false };
+  lastRenderKey = null;
+  render(true);
+}
+
+function copyCode(){
+  if(!state.roomCode) return;
+  navigator.clipboard?.writeText(state.roomCode).catch(()=>{});
+  showError('コードをコピーしました');
+}
+
+function setTab(t){ state.tab = t; render(true); }
+function onAnswerInput(e){ draftAnswer = e.target.value; }
+
+/* ---------------- render ---------------- */
+function esc(s){ const d=document.createElement('div'); d.textContent = s==null?'':String(s); return d.innerHTML; }
+function colorFor(idx){ return PLAYER_COLORS[idx % PLAYER_COLORS.length]; }
+
+function computeRenderKey(){
+  if(state.screen==='home') return `home|${state.tab}`;
+  const m = state.meta;
+  return `room|${m?m.phase:''}|${m?m.round:''}|${state.myAnswerSubmitted}`;
+}
+
+function render(force){
+  const key = computeRenderKey();
+  if(force || key !== lastRenderKey){
+    lastRenderKey = key;
+    document.getElementById('app').innerHTML = screenHTML();
+  } else {
+    updateLiveRegions();
+  }
+}
+
+function updateLiveRegions(){
+  if(state.screen==='room' && state.meta){
+    if(state.meta.phase==='lobby'){
+      const el = document.getElementById('playerGrid');
+      if(el) el.innerHTML = playersHTML();
+      const cnt = document.getElementById('playerCount');
+      if(cnt) cnt.textContent = `${state.players.length} / ${MAX_PLAYERS}`;
+    } else if(state.meta.phase==='answering'){
+      const el = document.getElementById('statusList');
+      if(el) el.innerHTML = statusListHTML();
+    }
+  }
+  const err = document.getElementById('errorToastSlot');
+  if(err) err.innerHTML = state.errorMsg ? `<div class="error-toast">${esc(state.errorMsg)}</div>` : '';
+}
+
+function errorToastHTML(){
+  return `<div id="errorToastSlot">${state.errorMsg ? `<div class="error-toast">${esc(state.errorMsg)}</div>` : ''}</div>`;
+}
+
+function brandHTML(sub){
+  return `<div class="brand">
+    <span class="mark">MATCH GAME</span>
+    <h1>一致ゲーム</h1>
+    <p>${sub}</p>
+  </div>`;
+}
+
+function screenHTML(){
+  if(state.screen==='home') return homeHTML();
+  if(!state.meta) return `<div class="panel"><p>読み込み中...</p></div>`;
+  switch(state.meta.phase){
+    case 'lobby': return lobbyHTML();
+    case 'answering': return answeringHTML();
+    case 'reveal': return revealHTML();
+    case 'finished': return finishedHTML();
+    default: return `<div class="panel"><p>読み込み中...</p></div>`;
+  }
+}
+
+function homeHTML(){
+  return `
+  ${brandHTML('お題に対する答えをみんなで一致させよう。最大10人でオンライン対戦できます。')}
+  ${errorToastHTML()}
+  <div class="panel">
+    <div class="tabs">
+      <div class="tab ${state.tab==='create'?'active':''}" onclick="setTab('create')">ルームを作る</div>
+      <div class="tab ${state.tab==='join'?'active':''}" onclick="setTab('join')">ルームに参加</div>
+    </div>
+    ${state.tab==='create' ? `
+      <div class="field">
+        <label>あなたの名前</label>
+        <input id="nameInputCreate" maxlength="12" placeholder="例: たろう">
+      </div>
+      <button class="btn btn-gold" ${state.busy?'disabled':''} onclick="createRoom()">${state.busy?'作成中...':'ルームを作成する'}</button>
+    ` : `
+      <div class="field">
+        <label>ルームコード</label>
+        <input id="codeInputJoin" maxlength="4" style="text-transform:uppercase; letter-spacing:.15em; text-align:center; font-weight:700;" placeholder="A3F9">
+      </div>
+      <div class="field">
+        <label>あなたの名前</label>
+        <input id="nameInputJoin" maxlength="12" placeholder="例: はな">
+      </div>
+      <button class="btn btn-gold" ${state.busy?'disabled':''} onclick="joinRoom()">${state.busy?'参加中...':'ルームに参加する'}</button>
+    `}
+  </div>
+  <div class="footer-note">みんなで同じお題に答えて、答えが一致するとポイント獲得。<br>全員が同じ答えなら全員にボーナス!</div>
+  `;
+}
+
+function playersHTML(){
+  return state.players.map((p,i)=> `
+    <div class="chip">
+      <span class="dot" style="background:${colorFor(i)}"></span>
+      <span>${esc(p.name)}</span>
+      ${state.meta.hostId===p.id ? '<span class="host-badge">HOST</span>' : ''}
+    </div>
+  `).join('');
+}
+
+function lobbyHTML(){
+  return `
+  ${brandHTML('友達を招待して、参加者がそろったらゲームを開始しよう。')}
+  ${errorToastHTML()}
+  <div class="panel">
+    <div class="code-display">
+      <div class="label">ROOM CODE</div>
+      <div class="code">${esc(state.roomCode)}</div>
+      <button class="btn btn-outline" style="width:auto; padding:8px 18px;" onclick="copyCode()">コードをコピー</button>
+    </div>
+    <h2>参加者 <span id="playerCount" style="color:var(--text-dim); font-weight:400; font-size:14px;">${state.players.length} / ${MAX_PLAYERS}</span></h2>
+    <div class="player-grid" id="playerGrid">${playersHTML()}</div>
+    ${state.isHost ? `
+      <div class="field">
+        <label>ラウンド数</label>
+        <select id="roundsSelect">
+          <option value="5">5問</option>
+          <option value="8" selected>8問</option>
+          <option value="10">10問</option>
+          <option value="12">12問</option>
+        </select>
+      </div>
+      <button class="btn btn-gold" ${state.players.length<2 || state.busy ? 'disabled':''} onclick="startGame()">
+        ${state.players.length<2 ? '2人以上で開始できます' : (state.busy?'開始中...':'ゲーム開始')}
+      </button>
+    ` : `<p class="empty-note">ホストがゲームを開始するのを待っています...</p>`}
+  </div>
+  <button class="link-btn" onclick="leaveRoom()">ルームを退出する</button>
+  `;
+}
+
+function statusListHTML(){
+  return state.players.map(p=>{
+    const done = !!state.answersMap[p.id];
+    return `<div class="status-pill ${done?'done':''}">${done?'✅':'⏳'} ${esc(p.name)}</div>`;
+  }).join('');
+}
+
+function answeringHTML(){
+  const m = state.meta;
+  const answeredCount = state.players.filter(p=>state.answersMap[p.id]).length;
+  return `
+  ${brandHTML('')}
+  ${errorToastHTML()}
+  <div class="panel">
+    <div class="round-tag">ROUND ${m.round} / ${m.totalRounds}</div>
+    <div class="eyebrow">お題</div>
+    <div class="question">${esc(m.question)}</div>
+    ${state.myAnswerSubmitted ? `
+      <div class="submitted-box">
+        <div class="big">送信しました!</div>
+        <p style="color:var(--text-dim); margin:6px 0 0; font-size:13px;">他のみんなの回答を待っています...</p>
+      </div>
+    ` : `
+      <input id="answerBox" class="answer-input" maxlength="20" placeholder="ここに回答を入力" value="${esc(draftAnswer)}" oninput="onAnswerInput(event)" onkeydown="if(event.key==='Enter') submitAnswer()">
+      <button class="btn btn-gold" ${state.busy?'disabled':''} onclick="submitAnswer()">${state.busy?'送信中...':'回答を送信する'}</button>
+    `}
+    <h2 style="margin-top:20px;">回答状況 (${answeredCount}/${state.players.length})</h2>
+    <div class="status-list" id="statusList">${statusListHTML()}</div>
+    ${state.isHost ? `
+      <button class="btn btn-outline" style="margin-top:8px;" ${state.busy?'disabled':''} onclick="hostReveal()">
+        ${state.busy?'集計中...':'回答を締め切って結果を見る'}
+      </button>
+    ` : ''}
+  </div>
+  <button class="link-btn" onclick="leaveRoom()">ルームを退出する</button>
+  `;
+}
+
+function scoreboardHTML(){
+  const sorted = [...state.players].sort((a,b)=> b.score - a.score);
+  return sorted.map((p,i)=> `
+    <div class="score-row ${i===0 && p.score>0 ? 'top1':''}">
+      <div class="rank">${i+1}</div>
+      <div class="name">${esc(p.name)}</div>
+      <div class="pts">${p.score}pt</div>
+    </div>
+  `).join('');
+}
+
+function revealHTML(){
+  const m = state.meta;
+  const result = m.lastRoundResult;
+  const tilesHTML = result ? result.tiles.map(t => `
+    <div class="tile ${t.isMatch?'match':''}" style="--tile-color:${t.color||'transparent'}">
+      <div class="answer-text">${esc(t.answer)}</div>
+      <div class="who-row">
+        <div class="who">${t.names.map(esc).join(' / ')}</div>
+        ${t.isMatch ? `<span class="badge-match">${t.isPerfect?'全員一致 MATCH!':'MATCH ×'+t.names.length}</span>` : `<span class="badge-pts">+0pt</span>`}
+      </div>
+      ${t.isMatch ? `<div style="margin-top:6px; text-align:right;" class="badge-pts">+${t.pts}pt</div>` : ''}
+    </div>
+  `).join('') : '<p class="empty-note">集計中...</p>';
+
+  return `
+  ${brandHTML('')}
+  ${errorToastHTML()}
+  <div class="panel">
+    <div class="round-tag">ROUND ${m.round} / ${m.totalRounds} の結果</div>
+    <div class="question" style="font-size:19px;">${esc(result ? result.question : m.question)}</div>
+    ${tilesHTML}
+  </div>
+  <div class="panel">
+    <h2>現在のスコア</h2>
+    <div class="scoreboard" id="scoreboard">${scoreboardHTML()}</div>
+    ${state.isHost ? `
+      <button class="btn btn-gold" ${state.busy?'disabled':''} onclick="nextQuestion()">
+        ${state.busy?'処理中...':(m.round>=m.totalRounds ? '最終結果を見る' : '次のお題へ')}
+      </button>
+    ` : `<p class="empty-note">ホストが次に進めるのを待っています...</p>`}
+  </div>
+  <button class="link-btn" onclick="leaveRoom()">ルームを退出する</button>
+  `;
+}
+
+function finishedHTML(){
+  const sorted = [...state.players].sort((a,b)=> b.score - a.score);
+  const winner = sorted[0];
+  return `
+  ${brandHTML('全ラウンド終了!お疲れさまでした。')}
+  ${errorToastHTML()}
+  <div class="panel">
+    <div class="final-hero">
+      <div class="crown">🏆</div>
+      <div class="winner">${winner ? esc(winner.name) : '???'} さんの勝利!</div>
+    </div>
+    <h2>最終スコア</h2>
+    <div class="scoreboard">${scoreboardHTML()}</div>
+    ${state.isHost ? `
+      <button class="btn btn-gold" ${state.busy?'disabled':''} onclick="playAgain()">${state.busy?'準備中...':'もう一度あそぶ'}</button>
+    ` : `<p class="empty-note">ホストが「もう一度あそぶ」を選ぶのを待っています...</p>`}
+  </div>
+  <button class="link-btn" onclick="leaveRoom()">ルームを退出する</button>
+  `;
+}
+
+/* ---------------- init ---------------- */
+render(true);
+</script>
+</body>
+</html>
