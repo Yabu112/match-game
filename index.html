@@ -484,20 +484,13 @@ function playChime(){
   });
 }
 function maybeCelebrate(){
-  if(state.screen !== 'room') return;
+  if(state.screen!=='room') return;
   if(!state.meta) return;
-  if(state.meta.phase !== 'reveal') return;
-
+  if(state.meta.phase!=='reveal') return;
   const result = state.meta.lastRoundResult;
-
-  // result または tiles が存在しないなら何もしない
   if(!result || !Array.isArray(result.tiles)) return;
-
-  if(
-    result.tiles.some(t => t.isPerfect) &&
-    state.lastCelebratedRound !== state.meta.round
-  ){
-    state.lastCelebratedRound = state.meta.round;
+  if(result.tiles.some(t=>t.isPerfect) && state.lastCelebratedRound!==state.meta.round){
+    state.lastCelebratedRound=state.meta.round;
     celebrate();
   }
 }
@@ -720,14 +713,8 @@ async function hostReveal(){
   const newMeta = { ...meta, phase:'reveal',
     lastRoundResult: { question: meta.question, tiles: tilesForResult },
     roundHistory: [ ...(meta.roundHistory||[]), historyEntry ] };
-
-  const ok = await sSet(kMeta(roomCode), newMeta);   // ← 戻り値を確認
+  await sSet(kMeta(roomCode), newMeta);
   state.busy = false;
-  if(!ok){
-    showError('結果の確定に失敗しました。もう一度お試しください。');
-    render(true);
-    return;
-  }
   await refreshRoomState(); render(true);
 }
 
