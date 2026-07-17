@@ -465,7 +465,7 @@ function colorFor(idx){ return PLAYER_COLORS[idx % PLAYER_COLORS.length]; }
 function computeRenderKey(){
   if(state.screen==='home') return `home|${state.tab}`;
   const m = state.meta;
-  return `room|${m?m.phase:''}|${m?m.round:''}|${state.myAnswerSubmitted}`;
+  return `room|${m?m.phase:''}|${m?m.round:''}|${state.myAnswerSubmitted}|${state.players.length}`;
 }
 
 function render(force){
