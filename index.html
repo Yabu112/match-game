@@ -869,7 +869,6 @@ function sidebarHTML(){
     <div class="side-player">
       <span class="dot" style="background:${colorFor(i)}"></span>
       <span class="side-player-name">${isPlayerHost ? '👑 ' : ''}${esc(p.name)}${isMe ? ' (自分)' : ''}</span>
-      ${showScore ? `<span class="side-player-score">${p.score}pt</span>` : ''}
       <div class="player-menu-wrap">
       ${canManage ? `
         <button class="mini-btn" onclick="togglePlayerMenu('${p.id}')" title="このプレイヤーを管理" aria-expanded="${menuOpen}">⋯</button>
@@ -880,6 +879,7 @@ function sidebarHTML(){
         </div>` : ''}
       ` : ''}
       </div>
+      ${showScore ? `<span class="side-player-score">${p.score}pt</span>` : ''}
     </div>`;
   }).join('');
   const hasHistory = (m.roundHistory||[]).length > 0;
