@@ -487,7 +487,7 @@ function maybeCelebrate(){
   if(state.screen!=='room') return;
   if(!state.meta) return;
   if(state.meta.phase!=='reveal') return;
-  const result = state.meta.lastRoundResult;
+  const result=state.meta.lastRoundResult;
   if(!result || !Array.isArray(result.tiles)) return;
   if(result.tiles.some(t=>t.isPerfect) && state.lastCelebratedRound!==state.meta.round){
     state.lastCelebratedRound=state.meta.round;
@@ -592,7 +592,7 @@ function tickClock(){
     if(secEl) secEl.textContent = remain;
     const wrapEl = document.getElementById('timerDisplay');
     if(wrapEl) wrapEl.classList.toggle('timer-warn', remain<=5);
-    if(remain<=0 && state.isHost && !state.busy && state.timerRoundHandled !== m.round){
+    if(false && remain<=0 && state.isHost && !state.busy && state.timerRoundHandled !== m.round){
       state.timerRoundHandled = m.round;
       hostReveal();
     }
@@ -690,7 +690,7 @@ async function submitAnswer(){
   await sSet(kAnswer(roomCode, meta.gameId, meta.round, myId), { answer:text, submittedAt: Date.now() });
   state.busy = false; draftAnswer='';
   await refreshRoomState(); render(true);
-  maybeAutoReveal();
+  // maybeAutoReveal();
 }
 
 async function hostReveal(){
