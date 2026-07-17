@@ -484,14 +484,12 @@ function playChime(){
   });
 }
 function maybeCelebrate(){
-  if(state.screen!=='room') return;
-  if(!state.meta) return;
-  if(state.meta.phase!=='reveal') return;
-  const result=state.meta.lastRoundResult;
-  if(!result || !Array.isArray(result.tiles)) return;
-  if(result.tiles.some(t=>t.isPerfect) && state.lastCelebratedRound!==state.meta.round){
-    state.lastCelebratedRound=state.meta.round;
-    celebrate();
+  if(state.screen==='room' && state.meta && state.meta.phase==='reveal'){
+    const result = state.meta.lastRoundResult;
+    if(result && result.tiles.some(t=>t.isPerfect) && state.lastCelebratedRound !== state.meta.round){
+      state.lastCelebratedRound = state.meta.round;
+      celebrate();
+    }
   }
 }
 
@@ -511,7 +509,7 @@ async function createRoom(){
   const ok1 = await sSet(kMeta(code), {
     hostId: myId, phase:'lobby', round:0, totalRounds:8, question:'',
     usedQuestions:[], gameId:null, lastRoundResult:null, createdAt: Date.now(),
-    theme:'all', timeLimit:30, roundStartedAt:null, roundHistory:[]
+    theme:'all', gameMode:'solo', timeLimit:30, roundStartedAt:null, roundHistory:[]
   });
   const ok2 = await sSet(kPlayer(code, myId), { id:myId, name, score:0, joinedAt: Date.now() });
   state.busy = false;
@@ -592,7 +590,7 @@ function tickClock(){
     if(secEl) secEl.textContent = remain;
     const wrapEl = document.getElementById('timerDisplay');
     if(wrapEl) wrapEl.classList.toggle('timer-warn', remain<=5);
-    if(false && remain<=0 && state.isHost && !state.busy && state.timerRoundHandled !== m.round){
+    if(remain<=0 && state.isHost && !state.busy && state.timerRoundHandled !== m.round){
       state.timerRoundHandled = m.round;
       hostReveal();
     }
@@ -663,6 +661,7 @@ async function refreshRoomState(){
 async function startGame(){
   const roundsSel = document.getElementById('roundsSelect');
   const totalRounds = parseInt(roundsSel.value, 10);
+  const gameMode=document.getElementById('gameModeSelect').value;
   const themeSel = document.getElementById('themeSelect');
   const theme = themeSel ? themeSel.value : 'all';
   const tlSel = document.getElementById('timeLimitSelect');
@@ -672,7 +671,7 @@ async function startGame(){
   const q = pickQuestion(draftMeta);
   const gameId = Date.now().toString(36) + genId(4);
   const meta = { ...state.meta, phase:'answering', round:1, totalRounds, question:q,
-    usedQuestions:[q], gameId, lastRoundResult:null, theme, timeLimit,
+    usedQuestions:[q], gameId, lastRoundResult:null, theme, gameMode, timeLimit,
     roundStartedAt: Date.now(), roundHistory:[] };
   state.busy = true; render(false);
   await sSet(kMeta(state.roomCode), meta);
@@ -690,7 +689,7 @@ async function submitAnswer(){
   await sSet(kAnswer(roomCode, meta.gameId, meta.round, myId), { answer:text, submittedAt: Date.now() });
   state.busy = false; draftAnswer='';
   await refreshRoomState(); render(true);
-  // maybeAutoReveal();
+  maybeAutoReveal();
 }
 
 async function hostReveal(){
@@ -979,7 +978,15 @@ function lobbyHTML(){
           <option value="12">12問</option>
         </select>
       </div>
-      <div class="field">
+      
+<div class="field">
+<label>ゲームモード</label>
+<select id="gameModeSelect">
+<option value="solo">個人戦</option>
+<option value="team">チーム対抗戦</option>
+</select>
+</div>
+<div class="field">
         <label>お題テーマ</label>
         <select id="themeSelect">
           <option value="all">${THEME_LABELS.all}</option>
