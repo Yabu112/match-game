@@ -545,8 +545,8 @@ async function joinRoom(){
     }
   }
 
-  if(meta.phase !== 'lobby'){ showError('このルームはすでにゲーム中です'); return; }
-  if(existingPlayers.length >= MAX_PLAYERS){ showError('満員です(最大10人)'); return; }
+  if(meta.phase !== 'lobby'){ state.busy=false; showError('このルームはすでにゲーム中です'); return; }
+  if(existingPlayers.length >= MAX_PLAYERS){ state.busy=false; showError('満員です(最大10人)'); return; }
   state.busy = true; render(true);
   const myId = genId();
   const ok = await sSet(kPlayer(code, myId), { id:myId, name, score:0, joinedAt: Date.now() });
