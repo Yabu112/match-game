@@ -60,7 +60,7 @@
   .side-player-score{color:var(--gold); font-weight:700; font-size:12px; flex:none; width:34px; text-align:right;}
   .mini-btn{background:none; border:1px solid var(--border); border-radius:8px; width:26px; height:26px; display:flex; align-items:center; justify-content:center; font-size:13px; padding:0; flex:none; color:var(--text);}
   .mini-btn:hover{border-color:var(--gold); background:rgba(255,201,77,.1);}
-  .player-menu-wrap{position:relative; flex:none;}
+  .player-menu-wrap{position:relative; flex:none; width:26px; height:26px;}
   .player-dropdown{
     position:absolute; top:calc(100% + 6px); right:0; z-index:60; min-width:150px;
     background:var(--panel-2); border:1px solid var(--border); border-radius:12px;
@@ -868,18 +868,18 @@ function sidebarHTML(){
     return `
     <div class="side-player">
       <span class="dot" style="background:${colorFor(i)}"></span>
-      <span class="side-player-name">${esc(p.name)}${isMe ? ' (自分)' : ''}</span>
-      ${isPlayerHost ? '<span class="host-badge">HOST</span>' : ''}
+      <span class="side-player-name">${isPlayerHost ? '👑 ' : ''}${esc(p.name)}${isMe ? ' (自分)' : ''}</span>
       ${showScore ? `<span class="side-player-score">${p.score}pt</span>` : ''}
-      ${canManage ? `
       <div class="player-menu-wrap">
+      ${canManage ? `
         <button class="mini-btn" onclick="togglePlayerMenu('${p.id}')" title="このプレイヤーを管理" aria-expanded="${menuOpen}">⋯</button>
         ${menuOpen ? `
         <div class="player-dropdown" role="menu">
           <button role="menuitem" onclick="transferHost('${p.id}')">👑 ホストにする</button>
           <button role="menuitem" class="danger" onclick="kickPlayer('${p.id}')">🚪 退出させる</button>
         </div>` : ''}
-      </div>` : ''}
+      ` : ''}
+      </div>
     </div>`;
   }).join('');
   const hasHistory = (m.roundHistory||[]).length > 0;
