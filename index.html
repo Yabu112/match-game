@@ -337,7 +337,15 @@ async function enterRoomPolling(){
   await refreshRoomState();
   render(true);
   if(pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(async ()=>{ await refreshRoomState(); render(false); }, 2200);
+  pollTimer = setInterval(async ()=>{ await refreshRoomState(); maybeAutoReveal(); render(false); }, 2200);
+}
+
+function maybeAutoReveal(){
+  const m = state.meta;
+  if(!state.isHost || !m || m.phase!=='answering' || state.busy) return;
+  if(state.players.length === 0) return;
+  const allAnswered = state.players.every(p => !!state.answersMap[p.id]);
+  if(allAnswered) hostReveal();
 }
 
 async function refreshRoomState(){
@@ -388,6 +396,7 @@ async function submitAnswer(){
   await sSet(kAnswer(roomCode, meta.gameId, meta.round, myId), { answer:text, submittedAt: Date.now() });
   state.busy = false; draftAnswer='';
   await refreshRoomState(); render(true);
+  maybeAutoReveal();
 }
 
 async function hostReveal(){
@@ -620,8 +629,9 @@ function answeringHTML(){
     <div class="status-list" id="statusList">${statusListHTML()}</div>
     ${state.isHost ? `
       <button class="btn btn-outline" style="margin-top:8px;" ${state.busy?'disabled':''} onclick="hostReveal()">
-        ${state.busy?'集計中...':'回答を締め切って結果を見る'}
+        ${state.busy?'集計中...':'今すぐ結果を見る(未回答の人がいてもOK)'}
       </button>
+      <p class="empty-note" style="margin-top:8px;">全員が回答すると自動で結果画面に切り替わります</p>
     ` : ''}
   </div>
   <button class="link-btn" onclick="leaveRoom()">ルームを退出する</button>
