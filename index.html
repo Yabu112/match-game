@@ -44,7 +44,7 @@
   @media (max-width:760px){ .room-layout{flex-direction:column;} .side-col{width:100%;} }
   .side-panel{padding:16px;}
   .side-panel h2{font-size:14px; letter-spacing:.04em;}
-  .side-player{display:flex; align-items:center; gap:8px; padding:8px 2px; border-bottom:1px solid var(--border); font-size:13px;}
+  .side-player{display:flex; align-items:center; gap:6px; padding:8px 2px; border-bottom:1px solid var(--border); font-size:13px;}
   .side-player:last-child{border-bottom:none;}
   .side-player-name{flex:1; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .side-player-score{color:var(--gold); font-weight:700; font-size:12px; flex:none;}
@@ -137,6 +137,10 @@
   }
   .status-pill.done{border-color:#5ED9A0; color:#8EF0BE;}
 
+  .timer-box{text-align:center; margin-bottom:14px; font-weight:900; font-size:16px; color:var(--gold); font-family:'Zen Maru Gothic', sans-serif;}
+  .timer-box.timer-warn{color:var(--danger); animation:pulse .6s infinite alternate;}
+  @keyframes pulse{from{opacity:1;} to{opacity:.45;}}
+
   .tile{
     position:relative; border-radius:14px; padding:16px; border:2px solid var(--border);
     background:var(--bg-deep); margin-bottom:10px; transition:transform .2s ease;
@@ -152,6 +156,12 @@
   }
   .badge-pts{font-size:13px; font-weight:700; color:var(--gold);}
 
+  .reaction-row{display:flex; gap:6px; margin-top:10px; flex-wrap:wrap;}
+  .reaction-btn{border:1px solid var(--border); background:var(--panel); border-radius:999px; padding:4px 10px; font-size:14px; color:var(--text); display:flex; align-items:center; gap:5px;}
+  .reaction-btn:hover{border-color:var(--gold);}
+  .reaction-btn.mine{border-color:var(--gold); background:rgba(255,201,77,.15);}
+  .reaction-count{font-size:11px; color:var(--text-dim); font-weight:700;}
+
   .scoreboard{margin:14px 0;}
   .score-row{display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; background:var(--bg-deep); border:1px solid var(--border); margin-bottom:8px;}
   .score-row .rank{width:22px; font-weight:900; color:var(--text-dim); text-align:center;}
@@ -162,6 +172,25 @@
   .final-hero{text-align:center; padding:10px 0 22px;}
   .final-hero .crown{font-size:44px;}
   .final-hero .winner{font-size:26px; font-weight:900; font-family:'Zen Maru Gothic', sans-serif; color:var(--gold);}
+
+  .badge-card{display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:12px; background:var(--bg-deep); border:1px solid var(--border); margin-bottom:8px;}
+  .badge-card .emoji{font-size:28px; flex:none;}
+  .badge-card .info{min-width:0;}
+  .badge-card .info b{display:block; font-size:14px; font-family:'Zen Maru Gothic', sans-serif;}
+  .badge-card .info span{font-size:12px; color:var(--text-dim);}
+
+  .qmanager-item{display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid var(--border); border-radius:10px; background:var(--bg-deep); margin-bottom:6px; font-size:13px;}
+  .qmanager-item span{flex:1; overflow-wrap:anywhere;}
+
+  .overlay{position:fixed; inset:0; background:rgba(10,9,25,.75); backdrop-filter:blur(3px); display:flex; align-items:center; justify-content:center; z-index:500; padding:16px;}
+  .overlay-panel{max-width:640px; width:100%; max-height:85vh; overflow-y:auto;}
+  .history-round{border-bottom:1px solid var(--border); padding:12px 0;}
+  .history-round:last-child{border-bottom:none;}
+  .history-line{margin:4px 0; font-size:13px;}
+
+  .confetti-layer{position:fixed; inset:0; pointer-events:none; z-index:999; overflow:hidden;}
+  .confetti-piece{position:absolute; top:-12px; width:9px; height:14px; opacity:.9; border-radius:2px; animation:confetti-fall linear forwards;}
+  @keyframes confetti-fall{ to{ transform:translateY(108vh) rotate(360deg); opacity:.15; } }
 
   .empty-note{color:var(--text-dim); font-size:13px; text-align:center; margin-top:10px;}
   .error-toast{
@@ -192,6 +221,20 @@ const QUESTIONS = [
 const PLAYER_COLORS = ['#FF6B6B','#FFA94D','#FFD93D','#6BCB77','#4DCCBD','#4D96FF','#7C7CFF','#C77DFF','#FF7DC0','#FF9F7D'];
 const GROUP_COLORS = ['#FFC94D','#4DCCBD','#FF7DC0','#4D96FF','#7C7CFF','#6BCB77'];
 const MAX_PLAYERS = 10;
+const REACTION_EMOJI = ['👍','😂','🤔'];
+const THEME_LABELS = { all:'すべて', food:'🍜 食べ物', travel:'✈️ 旅行', preference:'💭 好み', daily:'🏠 日常', custom:'📝 カスタムのみ' };
+const SESSION_KEY = 'matchgame_session_v1';
+
+/* お題を大まかなテーマに自動分類する(既存45問のタグ付けを手作業でせずに済ませるため) */
+function classifyTheme(q){
+  const foodKw = ['食べ','ラーメン','お菓子','寿司','アイス','カフェ','麺','パン','鍋','野菜','果物','飲み物','料理'];
+  const travelKw = ['国','旅行','テーマパーク','世界遺産','無人島'];
+  const dailyKw = ['休日','コンビニ','家電','気分'];
+  if(foodKw.some(k=>q.includes(k))) return 'food';
+  if(travelKw.some(k=>q.includes(k))) return 'travel';
+  if(dailyKw.some(k=>q.includes(k))) return 'daily';
+  return 'preference';
+}
 
 /* ---------------- state ---------------- */
 let state = {
@@ -199,10 +242,26 @@ let state = {
   myId:null, myName:'', roomCode:null, isHost:false,
   meta:null, players:[], answersMap:{}, myAnswerSubmitted:false,
   errorMsg:'', busy:false,
+  reactionsMap:{}, myReactions:{}, showHistory:false, lastCelebratedRound:null,
+  prefillCode:'', timerRoundHandled:null,
 };
 let pollTimer = null;
+let clockTimer = null;
 let lastRenderKey = null;
 let draftAnswer = '';
+
+/* ---------------- local session (再接続用) ---------------- */
+function saveSession(){
+  try{ localStorage.setItem(SESSION_KEY, JSON.stringify({ roomCode:state.roomCode, myId:state.myId, savedAt:Date.now() })); }
+  catch(e){}
+}
+function loadSession(){
+  try{ const raw = localStorage.getItem(SESSION_KEY); return raw ? JSON.parse(raw) : null; }
+  catch(e){ return null; }
+}
+function clearSession(){
+  try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
+}
 
 /* ---------------- storage helpers ---------------- */
 function genId(len=8){
@@ -267,6 +326,9 @@ const kPlayerPrefix = c => `room:${c}:player:`;
 const kPlayer = (c,id) => `room:${c}:player:${id}`;
 const kAnswerPrefix = (c,gid,round) => `room:${c}:answer:${gid}:${round}:`;
 const kAnswer = (c,gid,round,id) => `room:${c}:answer:${gid}:${round}:${id}`;
+// tileIdx と playerId は "_" で1セグメントに詰める(sList は1階層下の子キーしか列挙できないため)
+const kReactionPrefix = (c,gid,round) => `room:${c}:reaction:${gid}:${round}:`;
+const kReaction = (c,gid,round,tileIdx,id) => `room:${c}:reaction:${gid}:${round}:${tileIdx}_${id}`;
 
 /* ---------------- normalization / scoring ---------------- */
 function normalize(s){ return (s||'').trim().replace(/\s+/g,'').toLowerCase(); }
@@ -301,6 +363,116 @@ function computeTiles(players, answersMap){
   return { tiles, pointsMap };
 }
 
+/* ---------------- question pool (テーマ/カスタムお題) ---------------- */
+function themePool(meta){
+  const theme = meta.theme || 'all';
+  const custom = meta.customQuestions || [];
+  if(theme === 'custom') return custom.slice();
+  if(theme === 'all') return [...QUESTIONS, ...custom];
+  return QUESTIONS.filter(q => classifyTheme(q) === theme);
+}
+function pickQuestion(meta){
+  const pool = themePool(meta);
+  const used = meta.usedQuestions || [];
+  const remaining = pool.filter(q => !used.includes(q));
+  const finalPool = remaining.length ? remaining : (pool.length ? pool : QUESTIONS);
+  return finalPool[Math.floor(Math.random()*finalPool.length)];
+}
+
+/* ---------------- badges (称号) ---------------- */
+function computeBadges(meta, players){
+  const history = (meta && meta.roundHistory) || [];
+  if(!history.length || players.length < 2) return [];
+  const perfectCount={}, matchCount={}, playedCount={}, speedSum={}, speedN={};
+  players.forEach(p=>{ perfectCount[p.id]=0; matchCount[p.id]=0; playedCount[p.id]=0; speedSum[p.id]=0; speedN[p.id]=0; });
+  history.forEach(h=>{
+    (h.tiles||[]).forEach(t=>{
+      (t.ids||[]).forEach(id=>{
+        if(!(id in matchCount)) return;
+        playedCount[id]++;
+        if(t.isMatch) matchCount[id]++;
+        if(t.isPerfect) perfectCount[id]++;
+      });
+    });
+    if(h.answers && h.startedAt){
+      Object.entries(h.answers).forEach(([id, a])=>{
+        if(a && a.submittedAt && id in speedSum){ speedSum[id]+=(a.submittedAt-h.startedAt); speedN[id]++; }
+      });
+    }
+  });
+  const badges = [];
+  let topPerfect=null;
+  players.forEach(p=>{ if(perfectCount[p.id]>0 && (!topPerfect || perfectCount[p.id]>perfectCount[topPerfect.id])) topPerfect=p; });
+  if(topPerfect) badges.push({ emoji:'🎯', title:'全員一致マスター', name:topPerfect.name, desc:`${perfectCount[topPerfect.id]}回、全員一致に貢献` });
+
+  let topMatch=null;
+  players.forEach(p=>{ if(matchCount[p.id]>0 && (!topMatch || matchCount[p.id]>matchCount[topMatch.id])) topMatch=p; });
+  if(topMatch) badges.push({ emoji:'🔥', title:'コンボ王', name:topMatch.name, desc:`${matchCount[topMatch.id]}回、答えが一致` });
+
+  const soloers = players.filter(p=> playedCount[p.id]>0 && matchCount[p.id]===0);
+  if(soloers.length) badges.push({ emoji:'🦄', title:'ひとり我が道', name: soloers.map(p=>p.name).join('・'), desc:'一度も答えが一致しなかった' });
+
+  let fastest=null;
+  players.forEach(p=>{
+    if(speedN[p.id]>0){
+      const avg = speedSum[p.id]/speedN[p.id];
+      if(!fastest || avg<fastest.avg) fastest = { name:p.name, avg };
+    }
+  });
+  if(fastest) badges.push({ emoji:'⚡', title:'最速回答賞', name:fastest.name, desc:`平均 ${(fastest.avg/1000).toFixed(1)}秒で回答` });
+
+  return badges;
+}
+
+/* ---------------- 演出(全員一致) ---------------- */
+function celebrate(){
+  spawnConfetti();
+  try{ playChime(); }catch(e){}
+}
+function spawnConfetti(){
+  const colors=['#FFC94D','#FF6B6B','#6BCB77','#4D96FF','#C77DFF','#4DCCBD'];
+  const layer = document.createElement('div');
+  layer.className = 'confetti-layer';
+  document.body.appendChild(layer);
+  const N = 70;
+  for(let i=0;i<N;i++){
+    const el = document.createElement('span');
+    el.className = 'confetti-piece';
+    el.style.left = (Math.random()*100)+'vw';
+    el.style.background = colors[Math.floor(Math.random()*colors.length)];
+    el.style.animationDuration = (2.2+Math.random()*1.6)+'s';
+    el.style.animationDelay = (Math.random()*0.4)+'s';
+    layer.appendChild(el);
+  }
+  setTimeout(()=>{ layer.remove(); }, 4200);
+}
+function playChime(){
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if(!Ctx) return;
+  const ctx = new Ctx();
+  const notes = [523.25, 659.25, 783.99, 1046.5];
+  notes.forEach((freq, i)=>{
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.value = freq;
+    osc.connect(gain); gain.connect(ctx.destination);
+    const start = ctx.currentTime + i*0.11;
+    gain.gain.setValueAtTime(0, start);
+    gain.gain.linearRampToValueAtTime(0.18, start+0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, start+0.35);
+    osc.start(start); osc.stop(start+0.4);
+  });
+}
+function maybeCelebrate(){
+  if(state.screen==='room' && state.meta && state.meta.phase==='reveal'){
+    const result = state.meta.lastRoundResult;
+    if(result && result.tiles.some(t=>t.isPerfect) && state.lastCelebratedRound !== state.meta.round){
+      state.lastCelebratedRound = state.meta.round;
+      celebrate();
+    }
+  }
+}
+
 /* ---------------- actions ---------------- */
 async function createRoom(){
   const nameEl = document.getElementById('nameInputCreate');
@@ -316,12 +488,14 @@ async function createRoom(){
   const myId = genId();
   const ok1 = await sSet(kMeta(code), {
     hostId: myId, phase:'lobby', round:0, totalRounds:8, question:'',
-    usedQuestions:[], gameId:null, lastRoundResult:null, createdAt: Date.now()
+    usedQuestions:[], gameId:null, lastRoundResult:null, createdAt: Date.now(),
+    theme:'all', timeLimit:30, roundStartedAt:null, customQuestions:[], roundHistory:[]
   });
   const ok2 = await sSet(kPlayer(code, myId), { id:myId, name, score:0, joinedAt: Date.now() });
   state.busy = false;
   if(!ok1 || !ok2){ showError('ルーム作成に失敗しました'); return; }
   state.myId = myId; state.myName = name; state.roomCode = code; state.isHost = true;
+  saveSession();
   await enterRoomPolling();
 }
 
@@ -334,14 +508,32 @@ async function joinRoom(){
   state.busy = true; render(true);
   const meta = await sGet(kMeta(code));
   if(!meta){ state.busy=false; showError('ルームが見つかりません'); return; }
-  if(meta.phase !== 'lobby'){ state.busy=false; showError('このルームはすでにゲーム中です'); return; }
-  const keys = await sList(kPlayerPrefix(code));
-  if(keys.length >= MAX_PLAYERS){ state.busy=false; showError('満員です(最大10人)'); return; }
+  const pKeys = await sList(kPlayerPrefix(code));
+  const existingPlayers = (await Promise.all(pKeys.map(k=>sGet(k)))).filter(Boolean);
+
+  // 同じ名前のプレイヤーがすでにいる場合は、そのプレイヤーとして復帰できるようにする
+  const nameNorm = name.toLowerCase();
+  const match = existingPlayers.find(p => (p.name||'').toLowerCase() === nameNorm);
+  if(match){
+    state.busy = false;
+    const wantsRejoin = confirm(`「${match.name}」という名前の参加者がすでにいます。このプレイヤーとして復帰しますか?`);
+    if(wantsRejoin){
+      state.myId = match.id; state.myName = match.name; state.roomCode = code; state.isHost = (meta.hostId === match.id);
+      saveSession();
+      await enterRoomPolling();
+      return;
+    }
+  }
+
+  if(meta.phase !== 'lobby'){ showError('このルームはすでにゲーム中です'); return; }
+  if(existingPlayers.length >= MAX_PLAYERS){ showError('満員です(最大10人)'); return; }
+  state.busy = true; render(true);
   const myId = genId();
   const ok = await sSet(kPlayer(code, myId), { id:myId, name, score:0, joinedAt: Date.now() });
   state.busy = false;
   if(!ok){ showError('参加に失敗しました'); return; }
   state.myId = myId; state.myName = name; state.roomCode = code; state.isHost = false;
+  saveSession();
   await enterRoomPolling();
 }
 
@@ -351,6 +543,7 @@ async function enterRoomPolling(){
   render(true);
   if(pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(async ()=>{ await refreshRoomState(); maybeAutoReveal(); render(false); }, 2200);
+  startClock();
 }
 
 function maybeAutoReveal(){
@@ -359,6 +552,29 @@ function maybeAutoReveal(){
   if(state.players.length === 0) return;
   const allAnswered = state.players.every(p => !!state.answersMap[p.id]);
   if(allAnswered) hostReveal();
+}
+
+function startClock(){
+  stopClock();
+  clockTimer = setInterval(tickClock, 1000);
+}
+function stopClock(){
+  if(clockTimer){ clearInterval(clockTimer); clockTimer = null; }
+}
+function tickClock(){
+  const m = state.meta;
+  if(!m || state.screen !== 'room') return;
+  if(m.phase === 'answering' && m.timeLimit > 0 && m.roundStartedAt){
+    const remain = Math.max(0, m.timeLimit - Math.floor((Date.now()-m.roundStartedAt)/1000));
+    const secEl = document.getElementById('timerSeconds');
+    if(secEl) secEl.textContent = remain;
+    const wrapEl = document.getElementById('timerDisplay');
+    if(wrapEl) wrapEl.classList.toggle('timer-warn', remain<=5);
+    if(remain<=0 && state.isHost && !state.busy && state.timerRoundHandled !== m.round){
+      state.timerRoundHandled = m.round;
+      hostReveal();
+    }
+  }
 }
 
 async function refreshRoomState(){
@@ -371,6 +587,22 @@ async function refreshRoomState(){
   const pKeys = await sList(kPlayerPrefix(code));
   const players = (await Promise.all(pKeys.map(k=>sGet(k)))).filter(Boolean);
   players.sort((a,b)=> a.joinedAt - b.joinedAt);
+
+  // ホストに強制退出させられた場合の検知
+  if(state.screen==='room' && state.myId && !players.some(p=>p.id===state.myId)){
+    if(pollTimer) clearInterval(pollTimer);
+    stopClock();
+    clearSession();
+    alert('ホストによってルームから退出させられました。');
+    state = { screen:'home', tab:'create', myId:null, myName:'', roomCode:null, isHost:false,
+      meta:null, players:[], answersMap:{}, myAnswerSubmitted:false, errorMsg:'', busy:false,
+      reactionsMap:{}, myReactions:{}, showHistory:false, lastCelebratedRound:null,
+      prefillCode:'', timerRoundHandled:null };
+    lastRenderKey = null;
+    render(true);
+    return;
+  }
+
   state.players = players;
 
   if((meta.phase==='answering' || meta.phase==='reveal') && meta.gameId){
@@ -385,18 +617,45 @@ async function refreshRoomState(){
     state.answersMap = map;
     state.myAnswerSubmitted = !!map[state.myId];
   }
+
+  if(meta.phase==='reveal' && meta.gameId){
+    const rKeys = await sList(kReactionPrefix(code, meta.gameId, meta.round));
+    const agg = {}; const mine = {};
+    await Promise.all(rKeys.map(async k=>{
+      const val = await sGet(k);
+      if(val==null) return;
+      const lastSeg = k.split(':').pop(); // "tileIdx_playerId"
+      const underscoreAt = lastSeg.indexOf('_');
+      const tileIdx = lastSeg.slice(0, underscoreAt);
+      const playerId = lastSeg.slice(underscoreAt+1);
+      if(!agg[tileIdx]) agg[tileIdx] = {};
+      agg[tileIdx][val] = (agg[tileIdx][val]||0)+1;
+      if(playerId === state.myId) mine[tileIdx] = val;
+    }));
+    state.reactionsMap = agg; state.myReactions = mine;
+  } else {
+    state.reactionsMap = {}; state.myReactions = {};
+  }
 }
 
 async function startGame(){
-  const sel = document.getElementById('roundsSelect');
-  const totalRounds = parseInt(sel.value, 10);
-  const q = QUESTIONS[Math.floor(Math.random()*QUESTIONS.length)];
+  const roundsSel = document.getElementById('roundsSelect');
+  const totalRounds = parseInt(roundsSel.value, 10);
+  const themeSel = document.getElementById('themeSelect');
+  const theme = themeSel ? themeSel.value : 'all';
+  const tlSel = document.getElementById('timeLimitSelect');
+  const timeLimit = tlSel ? parseInt(tlSel.value, 10) : 0;
+
+  const draftMeta = { ...state.meta, theme, usedQuestions:[] };
+  const q = pickQuestion(draftMeta);
   const gameId = Date.now().toString(36) + genId(4);
   const meta = { ...state.meta, phase:'answering', round:1, totalRounds, question:q,
-    usedQuestions:[q], gameId, lastRoundResult:null };
+    usedQuestions:[q], gameId, lastRoundResult:null, theme, timeLimit,
+    roundStartedAt: Date.now(), roundHistory:[] };
   state.busy = true; render(false);
   await sSet(kMeta(state.roomCode), meta);
   state.busy = false;
+  state.timerRoundHandled = null;
   await refreshRoomState(); render(true);
 }
 
@@ -417,18 +676,33 @@ async function hostReveal(){
   await refreshRoomState();
   const { players, answersMap, meta, roomCode } = state;
   const { tiles, pointsMap } = computeTiles(players, answersMap);
-  // apply scores
   for(const p of players){
     const pts = pointsMap[p.id] || 0;
     if(pts>0){ await sSet(kPlayer(roomCode, p.id), { ...p, score: p.score + pts }); }
   }
+  const tilesForResult = tiles.map(t=>({
+    answer:t.answer, isMatch:t.isMatch, isPerfect:t.isPerfect, pts:t.pts, color:t.color,
+    ids:t.ids, names: t.ids.map(id => (players.find(p=>p.id===id)||{}).name || '?')
+  }));
+  const answersSnapshot = {};
+  players.forEach(p=>{ const a = answersMap[p.id]; answersSnapshot[p.id] = a ? { submittedAt:a.submittedAt } : null; });
+  const historyEntry = { round: meta.round, question: meta.question, tiles: tilesForResult,
+    startedAt: meta.roundStartedAt || null, answers: answersSnapshot };
   const newMeta = { ...meta, phase:'reveal',
-    lastRoundResult: { question: meta.question, tiles: tiles.map(t=>({
-      answer:t.answer, isMatch:t.isMatch, isPerfect:t.isPerfect, pts:t.pts, color:t.color,
-      names: t.ids.map(id => (players.find(p=>p.id===id)||{}).name || '?')
-    })) } };
+    lastRoundResult: { question: meta.question, tiles: tilesForResult },
+    roundHistory: [ ...(meta.roundHistory||[]), historyEntry ] };
   await sSet(kMeta(roomCode), newMeta);
   state.busy = false;
+  await refreshRoomState(); render(true);
+}
+
+async function sendReaction(tileIdx, emoji){
+  const { roomCode, meta, myId } = state;
+  if(!meta || meta.phase!=='reveal') return;
+  const key = kReaction(roomCode, meta.gameId, meta.round, tileIdx, myId);
+  const current = state.myReactions[tileIdx];
+  if(current === emoji){ await sDelete(key); }
+  else{ await sSet(key, emoji); }
   await refreshRoomState(); render(true);
 }
 
@@ -440,13 +714,12 @@ async function nextQuestion(){
   if(nextRound > meta.totalRounds){
     await sSet(kMeta(state.roomCode), { ...meta, phase:'finished' });
   } else {
-    const remaining = QUESTIONS.filter(q => !meta.usedQuestions.includes(q));
-    const pool = remaining.length ? remaining : QUESTIONS;
-    const q = pool[Math.floor(Math.random()*pool.length)];
+    const q = pickQuestion(meta);
     await sSet(kMeta(state.roomCode), { ...meta, phase:'answering', round: nextRound, question:q,
-      usedQuestions:[...meta.usedQuestions, q], lastRoundResult:null });
+      usedQuestions:[...meta.usedQuestions, q], lastRoundResult:null, roundStartedAt: Date.now() });
   }
   state.busy = false;
+  state.timerRoundHandled = null;
   await refreshRoomState(); render(true);
 }
 
@@ -457,16 +730,69 @@ async function playAgain(){
     await sSet(kPlayer(state.roomCode, p.id), { ...p, score:0 });
   }
   await sSet(kMeta(state.roomCode), { ...state.meta, phase:'lobby', round:0, question:'',
-    usedQuestions:[], gameId:null, lastRoundResult:null });
+    usedQuestions:[], gameId:null, lastRoundResult:null, roundHistory:[] });
+  state.busy = false;
+  await refreshRoomState(); render(true);
+}
+
+async function kickPlayer(id){
+  if(!state.isHost || id === state.myId) return;
+  const target = state.players.find(p=>p.id===id);
+  if(!target) return;
+  if(!confirm(`「${target.name}」さんを退出させますか?`)) return;
+  state.busy = true; render(false);
+  await sDelete(kPlayer(state.roomCode, id));
+  state.busy = false;
+  await refreshRoomState(); render(true);
+}
+
+async function addCustomQuestion(){
+  const input = document.getElementById('customQInput');
+  const text = input.value.trim();
+  if(!text){ showError('お題を入力してください'); return; }
+  state.busy = true; render(false);
+  await refreshRoomState();
+  const list = [...(state.meta.customQuestions||[]), text];
+  await sSet(kMeta(state.roomCode), { ...state.meta, customQuestions:list });
+  state.busy = false;
+  await refreshRoomState(); render(true);
+}
+async function editCustomQuestion(idx){
+  await refreshRoomState();
+  const list = [...(state.meta.customQuestions||[])];
+  const cur = list[idx];
+  if(cur == null) return;
+  const next = prompt('お題を編集', cur);
+  if(next == null) return;
+  const t = next.trim();
+  if(!t) return;
+  list[idx] = t;
+  state.busy = true; render(false);
+  await sSet(kMeta(state.roomCode), { ...state.meta, customQuestions:list });
+  state.busy = false;
+  await refreshRoomState(); render(true);
+}
+async function deleteCustomQuestion(idx){
+  await refreshRoomState();
+  const list = [...(state.meta.customQuestions||[])];
+  if(list[idx] == null) return;
+  if(!confirm(`「${list[idx]}」を削除しますか?`)) return;
+  list.splice(idx,1);
+  state.busy = true; render(false);
+  await sSet(kMeta(state.roomCode), { ...state.meta, customQuestions:list });
   state.busy = false;
   await refreshRoomState(); render(true);
 }
 
 async function leaveRoom(){
   if(pollTimer) clearInterval(pollTimer);
+  stopClock();
   if(state.roomCode && state.myId){ await sDelete(kPlayer(state.roomCode, state.myId)); }
+  clearSession();
   state = { screen:'home', tab:'create', myId:null, myName:'', roomCode:null, isHost:false,
-    meta:null, players:[], answersMap:{}, myAnswerSubmitted:false, errorMsg:'', busy:false };
+    meta:null, players:[], answersMap:{}, myAnswerSubmitted:false, errorMsg:'', busy:false,
+    reactionsMap:{}, myReactions:{}, showHistory:false, lastCelebratedRound:null,
+    prefillCode:'', timerRoundHandled:null };
   lastRenderKey = null;
   render(true);
 }
@@ -475,6 +801,12 @@ function copyCode(){
   if(!state.roomCode) return;
   navigator.clipboard?.writeText(state.roomCode).catch(()=>{});
   showError('コードをコピーしました');
+}
+function copyInviteLink(){
+  if(!state.roomCode) return;
+  const url = `${location.origin}${location.pathname}?room=${state.roomCode}`;
+  navigator.clipboard?.writeText(url).catch(()=>{});
+  showError('招待リンクをコピーしました');
 }
 
 async function transferHost(targetId){
@@ -490,15 +822,16 @@ async function transferHost(targetId){
 
 function setTab(t){ state.tab = t; render(true); }
 function onAnswerInput(e){ draftAnswer = e.target.value; }
+function toggleHistory(){ state.showHistory = !state.showHistory; render(true); }
 
 /* ---------------- render ---------------- */
 function esc(s){ const d=document.createElement('div'); d.textContent = s==null?'':String(s); return d.innerHTML; }
 function colorFor(idx){ return PLAYER_COLORS[idx % PLAYER_COLORS.length]; }
 
 function computeRenderKey(){
-  if(state.screen==='home') return `home|${state.tab}`;
+  if(state.screen==='home') return `home|${state.tab}|${state.prefillCode}`;
   const m = state.meta;
-  return `room|${m?m.phase:''}|${m?m.round:''}|${state.myAnswerSubmitted}|${state.players.length}|${m?m.hostId:''}`;
+  return `room|${m?m.phase:''}|${m?m.round:''}|${state.myAnswerSubmitted}|${state.players.length}|${m?m.hostId:''}|${state.showHistory}`;
 }
 
 function render(force){
@@ -509,6 +842,7 @@ function render(force){
   } else {
     updateLiveRegions();
   }
+  maybeCelebrate();
 }
 
 function updateLiveRegions(){
@@ -544,29 +878,39 @@ function sidebarHTML(){
       <span class="side-player-name">${esc(p.name)}${isMe ? ' (自分)' : ''}</span>
       ${isPlayerHost ? '<span class="host-badge">HOST</span>' : ''}
       ${showScore ? `<span class="side-player-score">${p.score}pt</span>` : ''}
-      ${state.isHost && !isPlayerHost ? `<button class="mini-btn" onclick="transferHost('${p.id}')" title="ホスト権限を譲る">👑</button>` : ''}
+      ${state.isHost && !isMe ? `<button class="mini-btn" onclick="transferHost('${p.id}')" title="ホスト権限を譲る">👑</button>` : ''}
+      ${state.isHost && !isMe ? `<button class="mini-btn" onclick="kickPlayer('${p.id}')" title="退出させる">🚪</button>` : ''}
     </div>`;
   }).join('');
+  const hasHistory = (m.roundHistory||[]).length > 0;
   return `
   <div class="panel side-panel">
     <h2>参加者 <span style="color:var(--text-dim); font-weight:400;">(${state.players.length}/${MAX_PLAYERS})</span></h2>
     <div id="sidebarPlayerList">${list || '<p class="empty-note">まだ誰もいません</p>'}</div>
-    ${state.isHost ? `<p class="empty-note" style="text-align:left; margin-top:10px;">👑ボタンでホスト権限を譲渡できます</p>` : ''}
+    ${state.isHost ? `<p class="empty-note" style="text-align:left; margin-top:10px;">👑譲渡 / 🚪退出させる</p>` : ''}
+    ${hasHistory ? `<button class="btn btn-outline" style="margin-top:12px;" onclick="toggleHistory()">📜 ラウンド履歴</button>` : ''}
   </div>`;
 }
 
 function screenHTML(){
-  if(state.screen==='home') return `<div class="home-wrap">${homeHTML()}</div>`;
-  if(!state.meta) return `<div class="panel"><p>読み込み中...</p></div>`;
-  let mainHTML;
-  switch(state.meta.phase){
-    case 'lobby': mainHTML = lobbyHTML(); break;
-    case 'answering': mainHTML = answeringHTML(); break;
-    case 'reveal': mainHTML = revealHTML(); break;
-    case 'finished': mainHTML = finishedHTML(); break;
-    default: mainHTML = `<div class="panel"><p>読み込み中...</p></div>`;
+  let out;
+  if(state.screen==='home'){
+    out = `<div class="home-wrap">${homeHTML()}</div>`;
+  } else if(!state.meta){
+    out = `<div class="panel"><p>読み込み中...</p></div>`;
+  } else {
+    let mainHTML;
+    switch(state.meta.phase){
+      case 'lobby': mainHTML = lobbyHTML(); break;
+      case 'answering': mainHTML = answeringHTML(); break;
+      case 'reveal': mainHTML = revealHTML(); break;
+      case 'finished': mainHTML = finishedHTML(); break;
+      default: mainHTML = `<div class="panel"><p>読み込み中...</p></div>`;
+    }
+    out = `<div class="room-layout"><div class="main-col">${mainHTML}</div><div class="side-col">${sidebarHTML()}</div></div>`;
   }
-  return `<div class="room-layout"><div class="main-col">${mainHTML}</div><div class="side-col">${sidebarHTML()}</div></div>`;
+  if(state.showHistory && state.screen==='room' && state.meta) out += historyOverlayHTML();
+  return out;
 }
 
 function homeHTML(){
@@ -587,7 +931,7 @@ function homeHTML(){
     ` : `
       <div class="field">
         <label>ルームコード</label>
-        <input id="codeInputJoin" maxlength="4" style="text-transform:uppercase; letter-spacing:.15em; text-align:center; font-weight:700;" placeholder="A3F9">
+        <input id="codeInputJoin" maxlength="4" style="text-transform:uppercase; letter-spacing:.15em; text-align:center; font-weight:700;" placeholder="A3F9" value="${esc(state.prefillCode||'')}">
       </div>
       <div class="field">
         <label>あなたの名前</label>
@@ -596,21 +940,27 @@ function homeHTML(){
       <button class="btn btn-gold" ${state.busy?'disabled':''} onclick="joinRoom()">${state.busy?'参加中...':'ルームに参加する'}</button>
     `}
   </div>
-  <div class="footer-note">みんなで同じお題に答えて、答えが一致するとポイント獲得。<br>全員が同じ答えなら全員にボーナス!</div>
+  <div class="footer-note">みんなで同じお題に答えて、答えが一致するとポイント獲得。<br>全員が同じ答えなら全員にボーナス!<br>画面を閉じても、同じ名前でもう一度参加すれば復帰できます。</div>
   `;
 }
 
-function playersHTML(){
-  return state.players.map((p,i)=> `
-    <div class="chip">
-      <span class="dot" style="background:${colorFor(i)}"></span>
-      <span>${esc(p.name)}</span>
-      ${state.meta.hostId===p.id ? '<span class="host-badge">HOST</span>' : ''}
-    </div>
-  `).join('');
+function statusListHTML(){
+  return state.players.map(p=>{
+    const done = !!state.answersMap[p.id];
+    return `<div class="status-pill ${done?'done':''}">${done?'✅':'⏳'} ${esc(p.name)}</div>`;
+  }).join('');
 }
 
 function lobbyHTML(){
+  const meta = state.meta;
+  const customQs = meta.customQuestions || [];
+  const customListHTML = customQs.length ? customQs.map((q,i)=>`
+    <div class="qmanager-item">
+      <span>${esc(q)}</span>
+      <button class="mini-btn" onclick="editCustomQuestion(${i})" title="編集">✎</button>
+      <button class="mini-btn" onclick="deleteCustomQuestion(${i})" title="削除">🗑</button>
+    </div>`).join('') : '<p class="empty-note">まだ追加されていません</p>';
+
   return `
   ${brandHTML('友達を招待して、参加者がそろったらゲームを開始しよう。')}
   ${errorToastHTML()}
@@ -618,7 +968,10 @@ function lobbyHTML(){
     <div class="code-display">
       <div class="label">ROOM CODE</div>
       <div class="code">${esc(state.roomCode)}</div>
-      <button class="btn btn-outline" style="width:auto; padding:8px 18px;" onclick="copyCode()">コードをコピー</button>
+      <div class="row">
+        <button class="btn btn-outline" onclick="copyCode()">コードをコピー</button>
+        <button class="btn btn-outline" onclick="copyInviteLink()">招待リンクをコピー</button>
+      </div>
     </div>
     <p class="empty-note" style="text-align:left; margin-bottom:14px;">右側に参加者一覧が表示されます。人数がそろったら開始しましょう。</p>
     ${state.isHost ? `
@@ -631,30 +984,57 @@ function lobbyHTML(){
           <option value="12">12問</option>
         </select>
       </div>
+      <div class="field">
+        <label>お題テーマ</label>
+        <select id="themeSelect">
+          <option value="all">${THEME_LABELS.all}</option>
+          <option value="food">${THEME_LABELS.food}</option>
+          <option value="travel">${THEME_LABELS.travel}</option>
+          <option value="preference">${THEME_LABELS.preference}</option>
+          <option value="daily">${THEME_LABELS.daily}</option>
+          ${customQs.length ? `<option value="custom">${THEME_LABELS.custom}</option>` : ''}
+        </select>
+      </div>
+      <div class="field">
+        <label>回答タイマー</label>
+        <select id="timeLimitSelect">
+          <option value="0">なし</option>
+          <option value="20">20秒</option>
+          <option value="30" selected>30秒</option>
+          <option value="45">45秒</option>
+          <option value="60">60秒</option>
+        </select>
+      </div>
       <button class="btn btn-gold" ${state.players.length<2 || state.busy ? 'disabled':''} onclick="startGame()">
         ${state.players.length<2 ? '2人以上で開始できます' : (state.busy?'開始中...':'ゲーム開始')}
       </button>
     ` : `<p class="empty-note">ホストがゲームを開始するのを待っています...</p>`}
   </div>
+  ${state.isHost ? `
+  <div class="panel">
+    <h2>📝 オリジナルお題を追加</h2>
+    <div class="row">
+      <input id="customQInput" placeholder="例: 好きな寿司ネタは?" maxlength="40">
+      <button class="btn btn-outline" style="flex:none; width:auto; padding:12px 16px;" onclick="addCustomQuestion()">追加</button>
+    </div>
+    <div style="margin-top:10px;">${customListHTML}</div>
+    <p class="empty-note" style="text-align:left; margin-top:8px;">既存45問に加えて、このルームだけのオリジナルお題を出題できます。</p>
+  </div>` : ''}
   <button class="link-btn" onclick="leaveRoom()">ルームを退出する</button>
   `;
-}
-
-function statusListHTML(){
-  return state.players.map(p=>{
-    const done = !!state.answersMap[p.id];
-    return `<div class="status-pill ${done?'done':''}">${done?'✅':'⏳'} ${esc(p.name)}</div>`;
-  }).join('');
 }
 
 function answeringHTML(){
   const m = state.meta;
   const answeredCount = state.players.filter(p=>state.answersMap[p.id]).length;
+  const remainNow = m.timeLimit>0 ? Math.max(0, m.timeLimit - Math.floor((Date.now()-(m.roundStartedAt||Date.now()))/1000)) : 0;
+  const timerHTML = m.timeLimit>0 ? `<div class="timer-box ${remainNow<=5?'timer-warn':''}" id="timerDisplay">⏱ 残り <span id="timerSeconds">${remainNow}</span>秒</div>` : '';
   return `
   ${brandHTML('')}
   ${errorToastHTML()}
   <div class="panel">
     <div class="round-tag">ROUND ${m.round} / ${m.totalRounds}</div>
+    ${timerHTML}
     <div class="eyebrow">お題</div>
     <div class="question">${esc(m.question)}</div>
     ${state.myAnswerSubmitted ? `
@@ -672,7 +1052,7 @@ function answeringHTML(){
       <button class="btn btn-outline" style="margin-top:8px;" ${state.busy?'disabled':''} onclick="hostReveal()">
         ${state.busy?'集計中...':'今すぐ結果を見る(未回答の人がいてもOK)'}
       </button>
-      <p class="empty-note" style="margin-top:8px;">全員が回答すると自動で結果画面に切り替わります</p>
+      <p class="empty-note" style="margin-top:8px;">全員が回答するか、タイマーが0になると自動で結果画面に切り替わります</p>
     ` : ''}
   </div>
   <button class="link-btn" onclick="leaveRoom()">ルームを退出する</button>
@@ -690,10 +1070,18 @@ function scoreboardHTML(){
   `).join('');
 }
 
+function reactionRowHTML(idx){
+  const agg = state.reactionsMap[idx] || {};
+  const mine = state.myReactions[idx];
+  return `<div class="reaction-row">${REACTION_EMOJI.map(e=>`
+    <button class="reaction-btn ${mine===e?'mine':''}" onclick="sendReaction(${idx}, '${e}')">${e}${agg[e]?`<span class="reaction-count">${agg[e]}</span>`:''}</button>
+  `).join('')}</div>`;
+}
+
 function revealHTML(){
   const m = state.meta;
   const result = m.lastRoundResult;
-  const tilesHTML = result ? result.tiles.map(t => `
+  const tilesHTML = result ? result.tiles.map((t, idx) => `
     <div class="tile ${t.isMatch?'match':''}" style="--tile-color:${t.color||'transparent'}">
       <div class="answer-text">${esc(t.answer)}</div>
       <div class="who-row">
@@ -701,6 +1089,7 @@ function revealHTML(){
         ${t.isMatch ? `<span class="badge-match">${t.isPerfect?'全員一致 MATCH!':'MATCH ×'+t.names.length}</span>` : `<span class="badge-pts">+0pt</span>`}
       </div>
       ${t.isMatch ? `<div style="margin-top:6px; text-align:right;" class="badge-pts">+${t.pts}pt</div>` : ''}
+      ${reactionRowHTML(idx)}
     </div>
   `).join('') : '<p class="empty-note">集計中...</p>';
 
@@ -728,6 +1117,12 @@ function revealHTML(){
 function finishedHTML(){
   const sorted = [...state.players].sort((a,b)=> b.score - a.score);
   const winner = sorted[0];
+  const badges = computeBadges(state.meta, state.players);
+  const badgesHTML = badges.length ? `
+  <div class="panel">
+    <h2>🏅 称号</h2>
+    ${badges.map(b=>`<div class="badge-card"><div class="emoji">${b.emoji}</div><div class="info"><b>${esc(b.title)} — ${esc(b.name)}</b><span>${esc(b.desc)}</span></div></div>`).join('')}
+  </div>` : '';
   return `
   ${brandHTML('全ラウンド終了!お疲れさまでした。')}
   ${errorToastHTML()}
@@ -742,12 +1137,58 @@ function finishedHTML(){
       <button class="btn btn-gold" ${state.busy?'disabled':''} onclick="playAgain()">${state.busy?'準備中...':'もう一度あそぶ'}</button>
     ` : `<p class="empty-note">ホストが「もう一度あそぶ」を選ぶのを待っています...</p>`}
   </div>
+  ${badgesHTML}
   <button class="link-btn" onclick="leaveRoom()">ルームを退出する</button>
   `;
 }
 
+function historyOverlayHTML(){
+  const history = (state.meta && state.meta.roundHistory) || [];
+  const roundsHTML = history.length ? history.map(h=>{
+    const lines = (h.tiles||[]).map(t=>{
+      const color = t.isMatch ? (t.color || 'var(--gold)') : 'var(--text-dim)';
+      const badge = t.isMatch ? `<span style="color:var(--gold); font-weight:700;">+${t.pts}pt</span>` : '';
+      return `<div class="history-line"><b style="color:${color}">${esc(t.answer)}</b> — ${t.names.map(esc).join(' / ')} ${badge}</div>`;
+    }).join('');
+    return `<div class="history-round">
+      <div class="round-tag">ROUND ${h.round}</div>
+      <div style="font-weight:700; margin-bottom:6px;">${esc(h.question)}</div>
+      ${lines}
+    </div>`;
+  }).join('') : '<p class="empty-note">まだラウンド履歴がありません</p>';
+
+  return `<div class="overlay" onclick="if(event.target===this) toggleHistory()">
+    <div class="panel overlay-panel">
+      <h2>📜 ラウンド履歴</h2>
+      ${roundsHTML}
+      <button class="btn btn-outline" style="margin-top:14px;" onclick="toggleHistory()">閉じる</button>
+    </div>
+  </div>`;
+}
+
 /* ---------------- init ---------------- */
-render(true);
+async function init(){
+  const params = new URLSearchParams(location.search);
+  const urlRoom = (params.get('room')||'').toUpperCase().trim();
+
+  const session = loadSession();
+  if(session && session.roomCode && session.myId){
+    const meta = await sGet(kMeta(session.roomCode));
+    const player = meta ? await sGet(kPlayer(session.roomCode, session.myId)) : null;
+    if(meta && player){
+      state.myId = session.myId; state.myName = player.name; state.roomCode = session.roomCode;
+      state.isHost = meta.hostId === session.myId;
+      await enterRoomPolling();
+      return;
+    } else {
+      clearSession();
+    }
+  }
+
+  if(urlRoom){ state.tab = 'join'; state.prefillCode = urlRoom; }
+  render(true);
+}
+init();
 </script>
 </body>
 </html>
