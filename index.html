@@ -36,7 +36,20 @@
     padding:24px 14px 60px;
   }
   h1,h2,h3,.display{font-family:'Zen Maru Gothic', sans-serif;}
-  #app{max-width:640px;margin:0 auto;}
+  #app{max-width:960px;margin:0 auto;}
+  .home-wrap{max-width:520px; margin:0 auto;}
+  .room-layout{display:flex; gap:16px; align-items:flex-start;}
+  .main-col{flex:1; min-width:0;}
+  .side-col{width:240px; flex:none;}
+  @media (max-width:760px){ .room-layout{flex-direction:column;} .side-col{width:100%;} }
+  .side-panel{padding:16px;}
+  .side-panel h2{font-size:14px; letter-spacing:.04em;}
+  .side-player{display:flex; align-items:center; gap:8px; padding:8px 2px; border-bottom:1px solid var(--border); font-size:13px;}
+  .side-player:last-child{border-bottom:none;}
+  .side-player-name{flex:1; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .side-player-score{color:var(--gold); font-weight:700; font-size:12px; flex:none;}
+  .mini-btn{background:none; border:1px solid var(--border); border-radius:8px; width:26px; height:26px; display:flex; align-items:center; justify-content:center; font-size:13px; padding:0; flex:none; color:var(--text);}
+  .mini-btn:hover{border-color:var(--gold); background:rgba(255,201,77,.1);}
   button{font-family:inherit; cursor:pointer;}
   input, select, button{font-size:16px;}
   input:focus-visible, select:focus-visible, button:focus-visible{
@@ -464,6 +477,17 @@ function copyCode(){
   showError('コードをコピーしました');
 }
 
+async function transferHost(targetId){
+  if(!state.isHost || targetId===state.myId) return;
+  const target = state.players.find(p=>p.id===targetId);
+  if(!target) return;
+  if(!confirm(`ホスト権限を「${target.name}」さんに譲りますか?`)) return;
+  state.busy = true; render(false);
+  await sSet(kMeta(state.roomCode), { ...state.meta, hostId: targetId });
+  state.busy = false;
+  await refreshRoomState(); render(true);
+}
+
 function setTab(t){ state.tab = t; render(true); }
 function onAnswerInput(e){ draftAnswer = e.target.value; }
 
@@ -474,7 +498,7 @@ function colorFor(idx){ return PLAYER_COLORS[idx % PLAYER_COLORS.length]; }
 function computeRenderKey(){
   if(state.screen==='home') return `home|${state.tab}`;
   const m = state.meta;
-  return `room|${m?m.phase:''}|${m?m.round:''}|${state.myAnswerSubmitted}|${state.players.length}`;
+  return `room|${m?m.phase:''}|${m?m.round:''}|${state.myAnswerSubmitted}|${state.players.length}|${m?m.hostId:''}`;
 }
 
 function render(force){
@@ -488,16 +512,9 @@ function render(force){
 }
 
 function updateLiveRegions(){
-  if(state.screen==='room' && state.meta){
-    if(state.meta.phase==='lobby'){
-      const el = document.getElementById('playerGrid');
-      if(el) el.innerHTML = playersHTML();
-      const cnt = document.getElementById('playerCount');
-      if(cnt) cnt.textContent = `${state.players.length} / ${MAX_PLAYERS}`;
-    } else if(state.meta.phase==='answering'){
-      const el = document.getElementById('statusList');
-      if(el) el.innerHTML = statusListHTML();
-    }
+  if(state.screen==='room' && state.meta && state.meta.phase==='answering'){
+    const el = document.getElementById('statusList');
+    if(el) el.innerHTML = statusListHTML();
   }
   const err = document.getElementById('errorToastSlot');
   if(err) err.innerHTML = state.errorMsg ? `<div class="error-toast">${esc(state.errorMsg)}</div>` : '';
@@ -515,16 +532,41 @@ function brandHTML(sub){
   </div>`;
 }
 
+function sidebarHTML(){
+  const m = state.meta;
+  const showScore = m.phase !== 'lobby';
+  const list = state.players.map((p,i)=>{
+    const isMe = p.id === state.myId;
+    const isPlayerHost = m.hostId === p.id;
+    return `
+    <div class="side-player">
+      <span class="dot" style="background:${colorFor(i)}"></span>
+      <span class="side-player-name">${esc(p.name)}${isMe ? ' (自分)' : ''}</span>
+      ${isPlayerHost ? '<span class="host-badge">HOST</span>' : ''}
+      ${showScore ? `<span class="side-player-score">${p.score}pt</span>` : ''}
+      ${state.isHost && !isPlayerHost ? `<button class="mini-btn" onclick="transferHost('${p.id}')" title="ホスト権限を譲る">👑</button>` : ''}
+    </div>`;
+  }).join('');
+  return `
+  <div class="panel side-panel">
+    <h2>参加者 <span style="color:var(--text-dim); font-weight:400;">(${state.players.length}/${MAX_PLAYERS})</span></h2>
+    <div id="sidebarPlayerList">${list || '<p class="empty-note">まだ誰もいません</p>'}</div>
+    ${state.isHost ? `<p class="empty-note" style="text-align:left; margin-top:10px;">👑ボタンでホスト権限を譲渡できます</p>` : ''}
+  </div>`;
+}
+
 function screenHTML(){
-  if(state.screen==='home') return homeHTML();
+  if(state.screen==='home') return `<div class="home-wrap">${homeHTML()}</div>`;
   if(!state.meta) return `<div class="panel"><p>読み込み中...</p></div>`;
+  let mainHTML;
   switch(state.meta.phase){
-    case 'lobby': return lobbyHTML();
-    case 'answering': return answeringHTML();
-    case 'reveal': return revealHTML();
-    case 'finished': return finishedHTML();
-    default: return `<div class="panel"><p>読み込み中...</p></div>`;
+    case 'lobby': mainHTML = lobbyHTML(); break;
+    case 'answering': mainHTML = answeringHTML(); break;
+    case 'reveal': mainHTML = revealHTML(); break;
+    case 'finished': mainHTML = finishedHTML(); break;
+    default: mainHTML = `<div class="panel"><p>読み込み中...</p></div>`;
   }
+  return `<div class="room-layout"><div class="main-col">${mainHTML}</div><div class="side-col">${sidebarHTML()}</div></div>`;
 }
 
 function homeHTML(){
@@ -578,8 +620,7 @@ function lobbyHTML(){
       <div class="code">${esc(state.roomCode)}</div>
       <button class="btn btn-outline" style="width:auto; padding:8px 18px;" onclick="copyCode()">コードをコピー</button>
     </div>
-    <h2>参加者 <span id="playerCount" style="color:var(--text-dim); font-weight:400; font-size:14px;">${state.players.length} / ${MAX_PLAYERS}</span></h2>
-    <div class="player-grid" id="playerGrid">${playersHTML()}</div>
+    <p class="empty-note" style="text-align:left; margin-bottom:14px;">右側に参加者一覧が表示されます。人数がそろったら開始しましょう。</p>
     ${state.isHost ? `
       <div class="field">
         <label>ラウンド数</label>
