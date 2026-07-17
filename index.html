@@ -34,9 +34,12 @@
     font-family:'Zen Kaku Gothic New', sans-serif;
     min-height:100vh;
     padding:24px 14px 60px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
   }
   h1,h2,h3,.display{font-family:'Zen Maru Gothic', sans-serif;}
-  #app{max-width:960px;margin:0 auto;}
+  #app{max-width:960px;width:100%;margin:0 auto;}
   .home-wrap{max-width:520px; margin:0 auto;}
   .room-layout{display:flex; gap:16px; align-items:flex-start;}
   .main-col{flex:1; min-width:0;}
@@ -50,6 +53,21 @@
   .side-player-score{color:var(--gold); font-weight:700; font-size:12px; flex:none;}
   .mini-btn{background:none; border:1px solid var(--border); border-radius:8px; width:26px; height:26px; display:flex; align-items:center; justify-content:center; font-size:13px; padding:0; flex:none; color:var(--text);}
   .mini-btn:hover{border-color:var(--gold); background:rgba(255,201,77,.1);}
+  .player-menu-wrap{position:relative; flex:none;}
+  .player-dropdown{
+    position:absolute; top:calc(100% + 6px); right:0; z-index:60; min-width:150px;
+    background:var(--panel-2); border:1px solid var(--border); border-radius:12px;
+    padding:6px; display:flex; flex-direction:column; gap:2px;
+    box-shadow:0 10px 26px rgba(0,0,0,.4);
+  }
+  .player-dropdown button{
+    display:flex; align-items:center; gap:8px; width:100%; padding:9px 10px;
+    background:none; border:none; border-radius:8px; color:var(--text);
+    font-size:13px; font-weight:500; text-align:left;
+  }
+  .player-dropdown button:hover{background:rgba(255,201,77,.14); color:var(--gold);}
+  .player-dropdown button.danger:hover{background:rgba(255,107,107,.14); color:var(--danger);}
+  .menu-backdrop{position:fixed; inset:0; z-index:55; background:transparent;}
   button{font-family:inherit; cursor:pointer;}
   input, select, button{font-size:16px;}
   input:focus-visible, select:focus-visible, button:focus-visible{
@@ -179,9 +197,6 @@
   .badge-card .info b{display:block; font-size:14px; font-family:'Zen Maru Gothic', sans-serif;}
   .badge-card .info span{font-size:12px; color:var(--text-dim);}
 
-  .qmanager-item{display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid var(--border); border-radius:10px; background:var(--bg-deep); margin-bottom:6px; font-size:13px;}
-  .qmanager-item span{flex:1; overflow-wrap:anywhere;}
-
   .overlay{position:fixed; inset:0; background:rgba(10,9,25,.75); backdrop-filter:blur(3px); display:flex; align-items:center; justify-content:center; z-index:500; padding:16px;}
   .overlay-panel{max-width:640px; width:100%; max-height:85vh; overflow-y:auto;}
   .history-round{border-bottom:1px solid var(--border); padding:12px 0;}
@@ -222,7 +237,7 @@ const PLAYER_COLORS = ['#FF6B6B','#FFA94D','#FFD93D','#6BCB77','#4DCCBD','#4D96F
 const GROUP_COLORS = ['#FFC94D','#4DCCBD','#FF7DC0','#4D96FF','#7C7CFF','#6BCB77'];
 const MAX_PLAYERS = 10;
 const REACTION_EMOJI = ['👍','😂','🤔'];
-const THEME_LABELS = { all:'すべて', food:'🍜 食べ物', travel:'✈️ 旅行', preference:'💭 好み', daily:'🏠 日常', custom:'📝 カスタムのみ' };
+const THEME_LABELS = { all:'すべて', food:'🍜 食べ物', travel:'✈️ 旅行', preference:'💭 好み', daily:'🏠 日常' };
 const SESSION_KEY = 'matchgame_session_v1';
 
 /* お題を大まかなテーマに自動分類する(既存45問のタグ付けを手作業でせずに済ませるため) */
@@ -243,7 +258,7 @@ let state = {
   meta:null, players:[], answersMap:{}, myAnswerSubmitted:false,
   errorMsg:'', busy:false,
   reactionsMap:{}, myReactions:{}, showHistory:false, lastCelebratedRound:null,
-  prefillCode:'', timerRoundHandled:null,
+  prefillCode:'', timerRoundHandled:null, openMenuPlayerId:null,
 };
 let pollTimer = null;
 let clockTimer = null;
@@ -363,12 +378,10 @@ function computeTiles(players, answersMap){
   return { tiles, pointsMap };
 }
 
-/* ---------------- question pool (テーマ/カスタムお題) ---------------- */
+/* ---------------- question pool (テーマ) ---------------- */
 function themePool(meta){
   const theme = meta.theme || 'all';
-  const custom = meta.customQuestions || [];
-  if(theme === 'custom') return custom.slice();
-  if(theme === 'all') return [...QUESTIONS, ...custom];
+  if(theme === 'all') return QUESTIONS.slice();
   return QUESTIONS.filter(q => classifyTheme(q) === theme);
 }
 function pickQuestion(meta){
@@ -489,7 +502,7 @@ async function createRoom(){
   const ok1 = await sSet(kMeta(code), {
     hostId: myId, phase:'lobby', round:0, totalRounds:8, question:'',
     usedQuestions:[], gameId:null, lastRoundResult:null, createdAt: Date.now(),
-    theme:'all', timeLimit:30, roundStartedAt:null, customQuestions:[], roundHistory:[]
+    theme:'all', timeLimit:30, roundStartedAt:null, roundHistory:[]
   });
   const ok2 = await sSet(kPlayer(code, myId), { id:myId, name, score:0, joinedAt: Date.now() });
   state.busy = false;
@@ -597,7 +610,7 @@ async function refreshRoomState(){
     state = { screen:'home', tab:'create', myId:null, myName:'', roomCode:null, isHost:false,
       meta:null, players:[], answersMap:{}, myAnswerSubmitted:false, errorMsg:'', busy:false,
       reactionsMap:{}, myReactions:{}, showHistory:false, lastCelebratedRound:null,
-      prefillCode:'', timerRoundHandled:null };
+      prefillCode:'', timerRoundHandled:null, openMenuPlayerId:null };
     lastRenderKey = null;
     render(true);
     return;
@@ -740,46 +753,9 @@ async function kickPlayer(id){
   const target = state.players.find(p=>p.id===id);
   if(!target) return;
   if(!confirm(`「${target.name}」さんを退出させますか?`)) return;
+  state.openMenuPlayerId = null;
   state.busy = true; render(false);
   await sDelete(kPlayer(state.roomCode, id));
-  state.busy = false;
-  await refreshRoomState(); render(true);
-}
-
-async function addCustomQuestion(){
-  const input = document.getElementById('customQInput');
-  const text = input.value.trim();
-  if(!text){ showError('お題を入力してください'); return; }
-  state.busy = true; render(false);
-  await refreshRoomState();
-  const list = [...(state.meta.customQuestions||[]), text];
-  await sSet(kMeta(state.roomCode), { ...state.meta, customQuestions:list });
-  state.busy = false;
-  await refreshRoomState(); render(true);
-}
-async function editCustomQuestion(idx){
-  await refreshRoomState();
-  const list = [...(state.meta.customQuestions||[])];
-  const cur = list[idx];
-  if(cur == null) return;
-  const next = prompt('お題を編集', cur);
-  if(next == null) return;
-  const t = next.trim();
-  if(!t) return;
-  list[idx] = t;
-  state.busy = true; render(false);
-  await sSet(kMeta(state.roomCode), { ...state.meta, customQuestions:list });
-  state.busy = false;
-  await refreshRoomState(); render(true);
-}
-async function deleteCustomQuestion(idx){
-  await refreshRoomState();
-  const list = [...(state.meta.customQuestions||[])];
-  if(list[idx] == null) return;
-  if(!confirm(`「${list[idx]}」を削除しますか?`)) return;
-  list.splice(idx,1);
-  state.busy = true; render(false);
-  await sSet(kMeta(state.roomCode), { ...state.meta, customQuestions:list });
   state.busy = false;
   await refreshRoomState(); render(true);
 }
@@ -792,7 +768,7 @@ async function leaveRoom(){
   state = { screen:'home', tab:'create', myId:null, myName:'', roomCode:null, isHost:false,
     meta:null, players:[], answersMap:{}, myAnswerSubmitted:false, errorMsg:'', busy:false,
     reactionsMap:{}, myReactions:{}, showHistory:false, lastCelebratedRound:null,
-    prefillCode:'', timerRoundHandled:null };
+    prefillCode:'', timerRoundHandled:null, openMenuPlayerId:null };
   lastRenderKey = null;
   render(true);
 }
@@ -814,6 +790,7 @@ async function transferHost(targetId){
   const target = state.players.find(p=>p.id===targetId);
   if(!target) return;
   if(!confirm(`ホスト権限を「${target.name}」さんに譲りますか?`)) return;
+  state.openMenuPlayerId = null;
   state.busy = true; render(false);
   await sSet(kMeta(state.roomCode), { ...state.meta, hostId: targetId });
   state.busy = false;
@@ -823,6 +800,13 @@ async function transferHost(targetId){
 function setTab(t){ state.tab = t; render(true); }
 function onAnswerInput(e){ draftAnswer = e.target.value; }
 function toggleHistory(){ state.showHistory = !state.showHistory; render(true); }
+function togglePlayerMenu(id){
+  state.openMenuPlayerId = (state.openMenuPlayerId === id) ? null : id;
+  render(true);
+}
+function closePlayerMenu(){
+  if(state.openMenuPlayerId !== null){ state.openMenuPlayerId = null; render(true); }
+}
 
 /* ---------------- render ---------------- */
 function esc(s){ const d=document.createElement('div'); d.textContent = s==null?'':String(s); return d.innerHTML; }
@@ -831,7 +815,7 @@ function colorFor(idx){ return PLAYER_COLORS[idx % PLAYER_COLORS.length]; }
 function computeRenderKey(){
   if(state.screen==='home') return `home|${state.tab}|${state.prefillCode}`;
   const m = state.meta;
-  return `room|${m?m.phase:''}|${m?m.round:''}|${state.myAnswerSubmitted}|${state.players.length}|${m?m.hostId:''}|${state.showHistory}`;
+  return `room|${m?m.phase:''}|${m?m.round:''}|${state.myAnswerSubmitted}|${state.players.length}|${m?m.hostId:''}|${state.showHistory}|${state.openMenuPlayerId}`;
 }
 
 function render(force){
@@ -872,24 +856,34 @@ function sidebarHTML(){
   const list = state.players.map((p,i)=>{
     const isMe = p.id === state.myId;
     const isPlayerHost = m.hostId === p.id;
+    const menuOpen = state.openMenuPlayerId === p.id;
+    const canManage = state.isHost && !isMe;
     return `
     <div class="side-player">
       <span class="dot" style="background:${colorFor(i)}"></span>
       <span class="side-player-name">${esc(p.name)}${isMe ? ' (自分)' : ''}</span>
       ${isPlayerHost ? '<span class="host-badge">HOST</span>' : ''}
       ${showScore ? `<span class="side-player-score">${p.score}pt</span>` : ''}
-      ${state.isHost && !isMe ? `<button class="mini-btn" onclick="transferHost('${p.id}')" title="ホスト権限を譲る">👑</button>` : ''}
-      ${state.isHost && !isMe ? `<button class="mini-btn" onclick="kickPlayer('${p.id}')" title="退出させる">🚪</button>` : ''}
+      ${canManage ? `
+      <div class="player-menu-wrap">
+        <button class="mini-btn" onclick="togglePlayerMenu('${p.id}')" title="このプレイヤーを管理" aria-expanded="${menuOpen}">⋯</button>
+        ${menuOpen ? `
+        <div class="player-dropdown" role="menu">
+          <button role="menuitem" onclick="transferHost('${p.id}')">👑 ホストにする</button>
+          <button role="menuitem" class="danger" onclick="kickPlayer('${p.id}')">🚪 退出させる</button>
+        </div>` : ''}
+      </div>` : ''}
     </div>`;
   }).join('');
   const hasHistory = (m.roundHistory||[]).length > 0;
+  const menuOverlay = state.openMenuPlayerId !== null ? `<div class="menu-backdrop" onclick="closePlayerMenu()"></div>` : '';
   return `
   <div class="panel side-panel">
     <h2>参加者 <span style="color:var(--text-dim); font-weight:400;">(${state.players.length}/${MAX_PLAYERS})</span></h2>
     <div id="sidebarPlayerList">${list || '<p class="empty-note">まだ誰もいません</p>'}</div>
-    ${state.isHost ? `<p class="empty-note" style="text-align:left; margin-top:10px;">👑譲渡 / 🚪退出させる</p>` : ''}
     ${hasHistory ? `<button class="btn btn-outline" style="margin-top:12px;" onclick="toggleHistory()">📜 ラウンド履歴</button>` : ''}
-  </div>`;
+  </div>
+  ${menuOverlay}`;
 }
 
 function screenHTML(){
@@ -953,14 +947,6 @@ function statusListHTML(){
 
 function lobbyHTML(){
   const meta = state.meta;
-  const customQs = meta.customQuestions || [];
-  const customListHTML = customQs.length ? customQs.map((q,i)=>`
-    <div class="qmanager-item">
-      <span>${esc(q)}</span>
-      <button class="mini-btn" onclick="editCustomQuestion(${i})" title="編集">✎</button>
-      <button class="mini-btn" onclick="deleteCustomQuestion(${i})" title="削除">🗑</button>
-    </div>`).join('') : '<p class="empty-note">まだ追加されていません</p>';
-
   return `
   ${brandHTML('友達を招待して、参加者がそろったらゲームを開始しよう。')}
   ${errorToastHTML()}
@@ -992,7 +978,6 @@ function lobbyHTML(){
           <option value="travel">${THEME_LABELS.travel}</option>
           <option value="preference">${THEME_LABELS.preference}</option>
           <option value="daily">${THEME_LABELS.daily}</option>
-          ${customQs.length ? `<option value="custom">${THEME_LABELS.custom}</option>` : ''}
         </select>
       </div>
       <div class="field">
@@ -1010,16 +995,6 @@ function lobbyHTML(){
       </button>
     ` : `<p class="empty-note">ホストがゲームを開始するのを待っています...</p>`}
   </div>
-  ${state.isHost ? `
-  <div class="panel">
-    <h2>📝 オリジナルお題を追加</h2>
-    <div class="row">
-      <input id="customQInput" placeholder="例: 好きな寿司ネタは?" maxlength="40">
-      <button class="btn btn-outline" style="flex:none; width:auto; padding:12px 16px;" onclick="addCustomQuestion()">追加</button>
-    </div>
-    <div style="margin-top:10px;">${customListHTML}</div>
-    <p class="empty-note" style="text-align:left; margin-top:8px;">既存45問に加えて、このルームだけのオリジナルお題を出題できます。</p>
-  </div>` : ''}
   <button class="link-btn" onclick="leaveRoom()">ルームを退出する</button>
   `;
 }
